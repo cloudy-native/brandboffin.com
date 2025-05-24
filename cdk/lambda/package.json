@@ -1,0 +1,25 @@
+{
+  "name": "claude-color-theme-lambda",
+  "version": "1.0.0",
+  "description": "TypeScript Lambda function for generating color themes with Claude",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.511.0",
+    "@aws-sdk/client-route-53-domains": "^3.816.0",
+    "fast-xml-parser": "^5.2.3",
+    "node-fetch": "2.7.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.126",
+    "@types/node": "^20.17.50",
+    "@types/node-fetch": "^2.6.12",
+    "typescript": "^5.2.2"
+  }
+}

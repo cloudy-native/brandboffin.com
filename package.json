@@ -1,0 +1,59 @@
+{
+  "name": "gatsby-typescript-chakraui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Gatsby starter template with TypeScript and Chakra UI",
+  "author": "",
+  "keywords": [
+    "gatsby"
+  ],
+  "scripts": {
+    "postinstall": "npm run theme",
+    "develop": "gatsby develop",
+    "start": "gatsby develop",
+    "build": "gatsby build",
+    "serve": "gatsby serve",
+    "clean": "gatsby clean",
+    "typecheck": "tsc --noEmit",
+    "theme": "chakra-cli tokens src/theme/index.ts",
+    "theme:watch": "chakra-cli tokens src/theme/index.ts --watch",
+    "deploy": "gatsby build --prefix-paths && gh-pages -d public",
+    "deploy:gh": "gatsby build --prefix-paths && gh-pages -d public -b main"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.816.0",
+    "@chakra-ui/icons": "^2.2.4",
+    "@chakra-ui/react": "^2.10.6",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "framer-motion": "^11.18.2",
+    "gatsby": "^5.11.0",
+    "gatsby-plugin-catch-links": "^5.14.0",
+    "gatsby-plugin-image": "^3.14.0",
+    "gatsby-plugin-react-svg": "^3.3.0",
+    "gatsby-plugin-robots-txt": "^1.8.0",
+    "gatsby-plugin-sharp": "^5.14.0",
+    "gatsby-plugin-sitemap": "^6.14.0",
+    "gatsby-remark-copy-linked-files": "^6.14.0",
+    "gatsby-remark-images": "^7.14.0",
+    "gatsby-remark-prismjs": "^7.14.0",
+    "gatsby-remark-responsive-iframe": "^6.14.0",
+    "gatsby-remark-smartypants": "^6.14.0",
+    "gatsby-source-filesystem": "^5.14.0",
+    "gatsby-transformer-remark": "^6.14.0",
+    "gatsby-transformer-sharp": "^5.14.0",
+    "prismjs": "^1.29.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
+    "recharts": "^2.15.1"
+  },
+  "devDependencies": {
+    "@chakra-ui/cli": "^2.3.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.29",
+    "@types/react-dom": "^18.0.11",
+    "gh-pages": "^6.3.0",
+    "typescript": "^5.0.2"
+  }
+}

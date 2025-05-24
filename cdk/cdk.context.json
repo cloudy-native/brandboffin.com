@@ -1,0 +1,22 @@
+{
+  "hosted-zone:account=607477397669:domainName=chakrathemes.com:region=us-east-1": {
+    "Id": "/hostedzone/Z00202512OGYTPJFJF7WR",
+    "Name": "chakrathemes.com."
+  },
+  "hosted-zone:account=607477397669:domainName=lingohog.com:region=us-east-1": {
+    "Id": "/hostedzone/Z00850691198EKLNOSSI0",
+    "Name": "lingohog.com."
+  },
+  "acknowledged-issue-numbers": [
+    30717,
+    30717
+  ],
+  "hosted-zone:account=607477397669:domainName=lingohog.com:region=ap-southeast-7": {
+    "Id": "/hostedzone/Z00850691198EKLNOSSI0",
+    "Name": "lingohog.com."
+  },
+  "hosted-zone:account=607477397669:domainName=lingohog.com:region=ap-southeast-1": {
+    "Id": "/hostedzone/Z00850691198EKLNOSSI0",
+    "Name": "lingohog.com."
+  }
+}
