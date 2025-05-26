@@ -1,16 +1,16 @@
 import {
   CheckDomainAvailabilityCommand,
+  GetDomainSuggestionsCommand,
+  ListPricesCommand,
   Route53DomainsClient,
 } from "@aws-sdk/client-route-53-domains";
+import {
+  DomainCheckResult,
+  DomainSuggestion,
+  TLDPrice,
+} from "../../common/types";
 
-interface DomainCheckResult {
-  domain: string;
-  availability: string;
-  available: boolean;
-  error?: string;
-}
-
-class AWSRoute53DomainChecker {
+class AWSDomainUtils {
   private client: Route53DomainsClient;
 
   constructor() {
@@ -68,84 +68,6 @@ class AWSRoute53DomainChecker {
   }
 
   /**
-   * Check multiple TLDs for a base domain name
-   */
-  async checkMultipleTlds(
-    baseName: string,
-    tlds: string[] = ["com", "net", "org", "io", "co"],
-    delayMs: number = 1000
-  ): Promise<DomainCheckResult[]> {
-    const domains = tlds.map((tld) => `${baseName}.${tld}`);
-    return this.checkDomains(domains, delayMs);
-  }
-
-  /**
-   * Get only available domains from a list
-   */
-  async getAvailableDomains(
-    domains: string[],
-    delayMs: number = 1000
-  ): Promise<string[]> {
-    const results = await this.checkDomains(domains, delayMs);
-    return results
-      .filter((result) => result.available && !result.error)
-      .map((result) => result.domain);
-  }
-
-  /**
-   * Check if Route 53 supports a specific TLD
-   * Note: This is a basic check - AWS doesn't provide an API to list supported TLDs
-   */
-  private isSupportedTld(domain: string): boolean {
-    // Common TLDs supported by Route 53 (this is not exhaustive)
-    const supportedTlds = [
-      "com",
-      "net",
-      "org",
-      "info",
-      "biz",
-      "us",
-      "uk",
-      "co.uk",
-      "org.uk",
-      "ca",
-      "de",
-      "fr",
-      "es",
-      "it",
-      "nl",
-      "be",
-      "ch",
-      "at",
-      "se",
-      "no",
-      "dk",
-      "fi",
-      "pl",
-      "cz",
-      "in",
-      "jp",
-      "au",
-      "com.au",
-      "br",
-      "mx",
-      "io",
-      "co",
-      "me",
-      "tv",
-      "cc",
-      "ly",
-      "ws",
-      "mobi",
-      "name",
-      "pro",
-    ];
-
-    const tld = domain.split(".").slice(1).join(".");
-    return supportedTlds.includes(tld.toLowerCase());
-  }
-
-  /**
    * Utility function to add delay between requests
    */
   private delay(ms: number): Promise<void> {
@@ -186,6 +108,70 @@ class AWSRoute53DomainChecker {
 
     return results;
   }
+
+  /**
+   * Get domain name suggestions based on a keyword or domain fragment.
+   */
+  async getDomainSuggestions(
+    query: string,
+    onlyAvailable: boolean = true,
+    suggestionCount: number = 10
+  ): Promise<DomainSuggestion[]> {
+    try {
+      const command = new GetDomainSuggestionsCommand({
+        DomainName: query, // Or use a different parameter like Keyword if more appropriate
+        OnlyAvailable: onlyAvailable,
+        SuggestionCount: suggestionCount,
+      });
+
+      const response = await this.client.send(command);
+
+      if (response.SuggestionsList) {
+        return response.SuggestionsList.map((suggestion) => ({
+          domainName: suggestion.DomainName || "",
+          availability: suggestion.Availability,
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error(`Error getting domain suggestions for "${query}":`, error);
+      // Depending on how you want to handle errors, you might throw the error
+      // or return an empty array or an array with an error indicator.
+      return []; // Return empty array on error for simplicity here
+    }
+  }
+
+  /**
+   * Get TLD pricing information.
+   * Fetches the first page of results. Pagination can be added if needed.
+   */
+  async getTLDPrices(tld?: string): Promise<TLDPrice[]> {
+    try {
+      const command = new ListPricesCommand({
+        Tld: tld, // Optional: If provided, filters for a specific TLD
+        // MaxItems and NextPageMarker can be used for pagination
+      });
+
+      const response = await this.client.send(command);
+
+      if (response.Prices) {
+        return response.Prices.map((priceInfo) => ({
+          tld: priceInfo.Name || "",
+          registrationPrice: priceInfo.RegistrationPrice?.Price,
+          renewalPrice: priceInfo.RenewalPrice?.Price,
+          transferPrice: priceInfo.TransferPrice?.Price,
+          currency:
+            priceInfo.RegistrationPrice?.Currency || // Assuming currency is consistent
+            priceInfo.RenewalPrice?.Currency ||
+            priceInfo.TransferPrice?.Currency,
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error(`Error getting TLD prices (TLD: ${tld || "all"}):`, error);
+      return [];
+    }
+  }
 }
 
-export { AWSRoute53DomainChecker, type DomainCheckResult };
+export { AWSDomainUtils };

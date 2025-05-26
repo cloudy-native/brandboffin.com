@@ -1,8 +1,8 @@
 import React from 'react';
-import { Button, Link, Box, Text, Icon, useColorModeValue } from '@chakra-ui/react';
+import { Button, Link, Box, Text, Icon, useColorModeValue, IconProps, ButtonProps } from '@chakra-ui/react';
 
 // Coffee cup icon component
-const CoffeeIcon = (props) => (
+const CoffeeIcon: React.FC<IconProps> = (props) => (
   <Icon viewBox="0 0 24 24" {...props}>
     <path
       fill="currentColor"
@@ -11,7 +11,13 @@ const CoffeeIcon = (props) => (
   </Icon>
 );
 
-const BuyMeCoffeeButton = ({ username = "stephen.harrison", color = "yellow", size = "md" }) => {
+interface BuyMeCoffeeButtonProps {
+  username?: string;
+  color?: string; // This prop seems unused, Chakra button color is handled by 'bg' and 'colorScheme'
+  size?: ButtonProps['size'];
+}
+
+const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({ username = "stephen.harrison", size = "md" }) => {
   const bgColor = useColorModeValue('yellow.400', 'yellow.500');
   const hoverBgColor = useColorModeValue('yellow.500', 'yellow.600');
   const textColor = useColorModeValue('gray.800', 'gray.900');

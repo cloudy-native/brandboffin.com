@@ -25,7 +25,7 @@ import * as React from "react";
 import {
   generateBrandNames,
   checkDomainAvailability,
-  type GenerateBrandNamesRequest,
+  type SuggestionRequest,
   // We might not need DomainAvailabilityResponse directly if BrandDomainStatus is self-contained
 } from "../../utils/api"; // Adjusted path
 
@@ -70,7 +70,7 @@ export const BrandNameGeneratorSection: React.FC<BrandNameGeneratorSectionProps>
     setBrandDomainStatuses(null); // Clear previous results
 
     try {
-      const requestBody: GenerateBrandNamesRequest = { prompt: brandPrompt };
+      const requestBody: SuggestionRequest = { prompt: brandPrompt };
       const result = await generateBrandNames(requestBody);
 
       if (result.suggestions && result.suggestions.length > 0) {

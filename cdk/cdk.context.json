@@ -18,5 +18,9 @@
   "hosted-zone:account=607477397669:domainName=lingohog.com:region=ap-southeast-1": {
     "Id": "/hostedzone/Z00850691198EKLNOSSI0",
     "Name": "lingohog.com."
+  },
+  "hosted-zone:account=607477397669:domainName=brandboffin.com:region=us-east-1": {
+    "Id": "/hostedzone/Z0006365LVB1847T3LP7",
+    "Name": "brandboffin.com."
   }
 }

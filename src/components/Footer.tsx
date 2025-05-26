@@ -43,7 +43,7 @@ const Footer = () => {
                 fontSize="xl"
                 color="primary.500"
               >
-                brandly
+                Brand Boffin
               </Text>
             </Box>
             <Text fontSize={"sm"}>
@@ -65,7 +65,7 @@ const Footer = () => {
 
       <Box py={4}>
         <Text pt={2} fontSize={"sm"} textAlign={"center"}>
-          © {new Date().getFullYear()} brandly. All rights reserved.
+          © {new Date().getFullYear()} Brand Boffin. All rights reserved.
         </Text>
       </Box>
     </Box>

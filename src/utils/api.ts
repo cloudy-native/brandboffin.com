@@ -1,13 +1,35 @@
-export interface DomainInfo {
-  domain: string;
-  availability: string;
-  available: boolean;
-}
+import {
+  BatchDomainCheckRequest,
+  BatchDomainCheckResponse,
+  DomainCheckRequest, // Added
+  DomainCheckResponse, // Added
+  SuggestionRequest, // Added
+  SuggestionResponse, // Added
+  GetDomainSuggestionsRequest, // Added
+  GetDomainSuggestionsResponse, // Added
+  GetTLDPricesRequest, // Added
+  GetTLDPricesResponse, // Added
+  TLDPrice, // Added (used by GetTLDPricesResponse)
+  DomainSuggestion // Added (used by GetDomainSuggestionsResponse)
+} from "../../common/types";
 
-export interface DomainAvailabilityResponse {
-  result: DomainInfo;
-}
-const BASE_URL = "https://api.lingohog.com";
+// Re-export types for external use
+export type {
+  DomainSuggestion,
+  GetDomainSuggestionsResponse,
+  SuggestionRequest,
+  SuggestionResponse,
+  DomainCheckRequest,
+  DomainCheckResponse,
+  BatchDomainCheckRequest,
+  BatchDomainCheckResponse,
+  GetTLDPricesRequest,
+  GetTLDPricesResponse,
+  TLDPrice,
+  DomainCheckResult
+} from "../../common/types";
+
+const BASE_URL = "https://api.brandboffin.com";
 const CHECK_DOMAIN_API_URL = `${BASE_URL}/check-domain`;
 const GENERATE_BRAND_NAMES_API_URL = `${BASE_URL}/generate-brand-names`;
 const CHECK_BATCH_DOMAINS_API_URL = `${BASE_URL}/check-batch-domains`;
@@ -21,14 +43,14 @@ const LIST_TLDS_API_URL = `${BASE_URL}/tlds`;
  */
 export const checkDomainAvailability = async (
   domainName: string
-): Promise<DomainAvailabilityResponse> => {
+): Promise<DomainCheckResponse> => {
   try {
     const response = await fetch(CHECK_DOMAIN_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ domain: domainName }),
+      body: JSON.stringify({ domainName } as DomainCheckRequest),
     });
 
     if (!response.ok) {
@@ -53,7 +75,8 @@ export const checkDomainAvailability = async (
       );
     }
 
-    const data: DomainAvailabilityResponse = await response.json();
+    const data: DomainCheckResponse = await response.json();
+    console.log("CheckDomainAvailability response:", data);
     return data;
   } catch (error) {
     console.error("Error checking domain availability:", error);
@@ -68,20 +91,6 @@ export const checkDomainAvailability = async (
   }
 };
 
-// Types for Generate Brand Names
-export interface GenerateBrandNamesRequest {
-  prompt: string;
-  industry?: string;
-  style?: string;
-  keywords?: string[];
-  length?: number;
-  count?: number;
-}
-
-export interface GenerateBrandNamesResponse {
-  suggestions: string[];
-}
-
 /**
  * Generates brand name suggestions by calling the API endpoint.
  * @param requestPayload The payload containing keywords or prompt for suggestions.
@@ -89,8 +98,8 @@ export interface GenerateBrandNamesResponse {
  * @throws An error if the API request fails or the response cannot be parsed.
  */
 export const generateBrandNames = async (
-  requestPayload: GenerateBrandNamesRequest
-): Promise<GenerateBrandNamesResponse> => {
+  requestPayload: SuggestionRequest
+): Promise<SuggestionResponse> => {
   try {
     const response = await fetch(GENERATE_BRAND_NAMES_API_URL, {
       method: "POST",
@@ -118,7 +127,8 @@ export const generateBrandNames = async (
       );
     }
 
-    const data: GenerateBrandNamesResponse = await response.json();
+    const data: SuggestionResponse = await response.json();
+    console.log("GenerateBrandNames response:", data);
     return data;
   } catch (error) {
     console.error("Error generating brand names:", error);
@@ -129,15 +139,6 @@ export const generateBrandNames = async (
   }
 };
 
-// Types for Check Batch Domains
-export interface CheckBatchDomainsRequest {
-  domains: string[];
-}
-
-export interface CheckBatchDomainsResponse {
-  results: DomainInfo[]; // Reuses DomainInfo from single domain check
-}
-
 /**
  * Checks the availability of multiple domain names by calling the API endpoint.
  * @param domains An array of domain names to check.
@@ -146,8 +147,8 @@ export interface CheckBatchDomainsResponse {
  */
 export const checkBatchDomains = async (
   domains: string[]
-): Promise<CheckBatchDomainsResponse> => {
-  const requestPayload: CheckBatchDomainsRequest = { domains };
+): Promise<BatchDomainCheckResponse> => {
+  const requestPayload: BatchDomainCheckRequest = { domains };
   try {
     const response = await fetch(CHECK_BATCH_DOMAINS_API_URL, {
       method: "POST",
@@ -175,8 +176,8 @@ export const checkBatchDomains = async (
       );
     }
 
-    const data: CheckBatchDomainsResponse = await response.json();
-    return data;
+    const data: BatchDomainCheckResponse = await response.json();
+      return data;
   } catch (error) {
     console.error("Error checking batch domains:", error);
     if (error instanceof Error) {
@@ -186,31 +187,24 @@ export const checkBatchDomains = async (
   }
 };
 
-// Types for Get Domain Suggestions
-export interface DomainSuggestion {
-  DomainName?: string;
-  Availability?: string; // e.g., "AVAILABLE", "UNAVAILABLE"
-}
-
-export interface GetDomainSuggestionsRequest {
-  domainName: string;
-  suggestionCount?: number;
-  onlyAvailable?: boolean;
-}
-
-export interface GetDomainSuggestionsResponse {
-  suggestions: DomainSuggestion[];
-}
-
 /**
  * Gets domain name suggestions from the API.
- * @param requestPayload The criteria for suggestions.
+ * @param query The query for suggestions.
+ * @param onlyAvailable Whether to only return available domains.
+ * @param suggestionCount The number of suggestions to return.
  * @returns A Promise that resolves with domain suggestions.
  * @throws An error if the API request fails or the response cannot be parsed.
  */
 export const getDomainSuggestions = async (
-  requestPayload: GetDomainSuggestionsRequest
+  query: string,
+  onlyAvailable: boolean = true,
+  suggestionCount: number = 10
 ): Promise<GetDomainSuggestionsResponse> => {
+  const requestPayload: GetDomainSuggestionsRequest = {
+    domainName: query,
+    onlyAvailable,
+    suggestionCount,
+  };
   try {
     const response = await fetch(GET_DOMAIN_SUGGESTIONS_API_URL, {
       method: "POST",
@@ -239,6 +233,7 @@ export const getDomainSuggestions = async (
     }
 
     const data: GetDomainSuggestionsResponse = await response.json();
+    console.log("GetDomainSuggestions response:", data);
     return data;
   } catch (error) {
     console.error("Error getting domain suggestions:", error);
@@ -249,41 +244,20 @@ export const getDomainSuggestions = async (
   }
 };
 
-// Types for List TLDs
-export interface PriceDetail {
-  Price?: number;
-  Currency?: string;
-}
-
-export interface TldPriceInfo {
-  tld: string;
-  registrationPrice?: PriceDetail;
-  transferPrice?: PriceDetail;
-  renewalPrice?: PriceDetail;
-}
-
-export interface ListTldsResponse {
-  tlds: TldPriceInfo[];
-}
-
 /**
  * Lists available TLDs and their registration prices.
  * @param tld Optional specific TLD to filter for.
  * @returns A Promise that resolves with a list of TLDs and their prices.
  * @throws An error if the API request fails or the response cannot be parsed.
  */
-export const listTlds = async (tld?: string): Promise<ListTldsResponse> => {
-  let apiUrl = LIST_TLDS_API_URL;
-  if (tld) {
-    apiUrl += `?tld=${encodeURIComponent(tld)}`;
-  }
-
+export const listTlds = async (tld?: string): Promise<GetTLDPricesResponse> => {
   try {
-    const response = await fetch(apiUrl, {
-      method: "GET",
+    const response = await fetch(LIST_TLDS_API_URL, {
+      method: "POST",
       headers: {
-        "Content-Type": "application/json", // Though for GET, body isn't sent, Content-Type for response expectation
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({ tld } as GetTLDPricesRequest),
     });
 
     if (!response.ok) {
@@ -304,7 +278,7 @@ export const listTlds = async (tld?: string): Promise<ListTldsResponse> => {
       );
     }
 
-    const data: ListTldsResponse = await response.json();
+    const data: GetTLDPricesResponse = await response.json();
     console.log("Data:", data);
     return data;
   } catch (error) {

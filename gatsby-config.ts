@@ -2,10 +2,10 @@ import type { GatsbyConfig } from "gatsby";
 
 const config: GatsbyConfig = {
   siteMetadata: {
-    title: `brandly`,
+    title: `brandboffin`,
     description: `A domain name generator for brands`,
-    author: `@brandly`,
-    siteUrl: `https://brandly.com`,
+    author: `@brandboffin`,
+    siteUrl: `https://brandboffin.com`,
   },
   graphqlTypegen: true,
   plugins: [

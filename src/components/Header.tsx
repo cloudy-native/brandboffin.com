@@ -91,7 +91,7 @@ const Header = () => {
                 color: "primary.600",
               }}
             >
-              brandly
+              Brand Boffin
             </Text>
 
             <Flex display={{ base: "none", md: "flex" }} ml={10}>
