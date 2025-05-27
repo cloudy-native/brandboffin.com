@@ -1,4 +1,4 @@
-export interface SuggestionRequest {
+export interface BrandNameSuggestionRequest {
   prompt: string;
   industry?: string;
   style?: string;
@@ -7,8 +7,13 @@ export interface SuggestionRequest {
   count?: number; // Number of suggestions to return
 }
 
-export interface SuggestionResponse {
-  suggestions: string[];
+export interface BrandNameSuggestion {
+  name: string;
+  tagline: string;
+}
+
+export interface BrandNameSuggestionResponse {
+  suggestions: BrandNameSuggestion[];
 }
 
 export interface BatchDomainCheckRequest {
@@ -18,7 +23,6 @@ export interface BatchDomainCheckRequest {
 
 export interface DomainCheckResult {
   domain: string;
-  availability: string;
   available: boolean;
   error?: string;
 }
@@ -37,7 +41,7 @@ export interface DomainCheckResponse {
 
 export interface DomainSuggestion {
   domainName: string;
-  availability?: string;
+  available: boolean;
 }
 
 export interface TLDPrice {

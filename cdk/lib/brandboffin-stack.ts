@@ -184,24 +184,28 @@ export class BrandBoffinStack extends Stack {
       new Statement.Route53domains().allow().toGetDomainSuggestions()
     );
 
-    const listTldsFunction = new NodejsFunction(this, "get-tld-prices-function", {
-      ...commonFunctionProps,
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        esbuildArgs: {
-          "--packages": "bundle",
-          "--tree-shaking": "true",
-          "--platform": "node",
+    const listTldsFunction = new NodejsFunction(
+      this,
+      "get-tld-prices-function",
+      {
+        ...commonFunctionProps,
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          esbuildArgs: {
+            "--packages": "bundle",
+            "--tree-shaking": "true",
+            "--platform": "node",
+          },
+          externalModules: ["@aws-sdk/*"],
+          nodeModules: ["@aws-sdk/client-route-53-domains"],
         },
-        externalModules: ["@aws-sdk/*"],
-        nodeModules: ["@aws-sdk/client-route-53-domains"],
-      },
-      environment: {
-        NODE_OPTIONS: "--enable-source-maps",
-        NODE_ENV: "production",
-      },
-    });
+        environment: {
+          NODE_OPTIONS: "--enable-source-maps",
+          NODE_ENV: "production",
+        },
+      }
+    );
 
     listTldsFunction.addToRolePolicy(
       new Statement.Route53domains().allow().toListPrices()
@@ -229,9 +233,8 @@ export class BrandBoffinStack extends Stack {
       },
     });
 
-    // Add API Gateway endpoint
     api.root
-      .addResource("generate-brand-names")
+      .addResource("suggest-brand-names")
       .addMethod("POST", new LambdaIntegration(brandNameSuggesterFunction));
 
     api.root
@@ -250,12 +253,9 @@ export class BrandBoffinStack extends Stack {
       .addResource("tlds")
       .addMethod("POST", new LambdaIntegration(listTldsFunction));
 
-    // Import existing hosted zone for certificate validation
     const hostedZone = HostedZone.fromLookup(this, "HostedZone", {
       domainName,
     });
-
-    // Create certificate for the API domain
     const certificate = new Certificate(this, "ApiCertificate", {
       domainName: apiDomainName,
       validation: CertificateValidation.fromDns(hostedZone),
@@ -264,7 +264,7 @@ export class BrandBoffinStack extends Stack {
     const apiRegionalDomain = new DomainName(this, "ApiRegionalDomain", {
       domainName: apiDomainName,
       certificate,
-      endpointType: EndpointType.REGIONAL, // Changed to REGIONAL
+      endpointType: EndpointType.REGIONAL,
     });
 
     new BasePathMapping(this, "ApiMapping", {
@@ -272,18 +272,12 @@ export class BrandBoffinStack extends Stack {
       restApi: api,
     });
 
-    // CloudFront distribution for the API Gateway
-    // The API Gateway's URL is like https://{restapi-id}.execute-api.{region}.amazonaws.com/{stageName}
-    // We need the {restapi-id}.execute-api.{region}.amazonaws.com part for HttpOrigin
-    // and /{stageName} for originPath.
-    const apiGatewayDomainName = Fn.select(2, Fn.split("/", api.url)); // Extracts 'abcdef123.execute-api.us-west-2.amazonaws.com'
-    const apiGatewayStagePath = `/${api.deploymentStage.stageName}`; // Extracts '/prod'
+    const apiGatewayDomainName = Fn.select(2, Fn.split("/", api.url));
+    const apiGatewayStagePath = `/${api.deploymentStage.stageName}`;
 
     const apiOrigin = new HttpOrigin(apiGatewayDomainName, {
       originPath: apiGatewayStagePath,
       protocolPolicy: OriginProtocolPolicy.HTTPS_ONLY,
-      // Consider adding a custom header for origin verification for added security
-      // customHeaders: { 'X-Origin-Verify': 'YOUR_SECRET_VALUE_HERE' }
     });
 
     const apiDistribution = new Distribution(this, "ApiDistribution", {
@@ -291,16 +285,15 @@ export class BrandBoffinStack extends Stack {
         origin: apiOrigin,
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: AllowedMethods.ALLOW_ALL,
-        cachePolicy: CachePolicy.CACHING_DISABLED, // APIs usually don't cache by default
-        originRequestPolicy: OriginRequestPolicy.CORS_CUSTOM_ORIGIN, // Managed policy for custom origins with CORS
+        cachePolicy: CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: OriginRequestPolicy.CORS_CUSTOM_ORIGIN,
       },
       domainNames: [apiDomainName],
-      certificate: certificate, // This is the certificate for apiDomainName
+      certificate: certificate,
       priceClass: PriceClass.PRICE_CLASS_100,
       comment: `CloudFront distribution for ${apiDomainName}`,
     });
 
-    // DNS A Record for the API to point to the API's CloudFront distribution
     new ARecord(this, "ApiAliasRecord", {
       zone: hostedZone,
       recordName: apiDomainName,
@@ -311,79 +304,64 @@ export class BrandBoffinStack extends Stack {
       value: `https://${apiDomainName}/`,
     });
 
-    // --- Static Website Hosting Setup ---
-
-    // S3 Bucket for website content
     const websiteBucket = new Bucket(this, "WebsiteBucket", {
-      publicReadAccess: false, // Keep it private, CloudFront will access it
+      publicReadAccess: false,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       websiteIndexDocument: "index.html",
-      websiteErrorDocument: "error.html", // Optional: if you have an error.html
-      removalPolicy: RemovalPolicy.DESTROY, // NOT recommended for production buckets
-      autoDeleteObjects: true, // NOT recommended for production buckets
-      encryption: BucketEncryption.S3_MANAGED, // Recommended for security
+      websiteErrorDocument: "error.html",
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      encryption: BucketEncryption.S3_MANAGED,
     });
 
-    // Origin Access Identity to allow CloudFront to access the S3 bucket
     const originAccessIdentity = new OriginAccessIdentity(this, "WebsiteOAI");
     websiteBucket.grantRead(originAccessIdentity);
 
-    // Certificate for the website domain (if different from apiDomainName or not covered)
-    // Assuming props.domainName is the root domain for the website, e.g., example.com
     const websiteCertificate = new Certificate(this, "WebsiteCertificate", {
       domainName: props.domainName,
-      subjectAlternativeNames: [`www.${props.domainName}`], // Optional: if you want to support www too
-      validation: CertificateValidation.fromDns(hostedZone), // Uses the same hostedZone as the API
+      subjectAlternativeNames: [`www.${props.domainName}`],
+      validation: CertificateValidation.fromDns(hostedZone),
     });
 
-    // CloudFront distribution for the website
     const websiteDistribution = new Distribution(this, "WebsiteDistribution", {
       defaultRootObject: "index.html",
-      domainNames: [props.domainName, `www.${props.domainName}`], // Match certificate SANs
+      domainNames: [props.domainName, `www.${props.domainName}`],
       certificate: websiteCertificate,
       defaultBehavior: {
         origin: new S3Origin(websiteBucket, { originAccessIdentity }),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-        cachePolicy: CachePolicy.CACHING_OPTIMIZED, // Good default for static sites
+        cachePolicy: CachePolicy.CACHING_OPTIMIZED,
       },
       priceClass: PriceClass.PRICE_CLASS_100,
       comment: `CloudFront distribution for ${props.domainName} website`,
     });
 
-    // DNS A Records for the website (root and www) to point to CloudFront
     new ARecord(this, "WebsiteAliasRecord", {
       zone: hostedZone,
-      recordName: props.domainName, // For the root domain
+      recordName: props.domainName,
       target: RecordTarget.fromAlias(new CloudFrontTarget(websiteDistribution)),
     });
     new ARecord(this, "WwwWebsiteAliasRecord", {
       zone: hostedZone,
-      recordName: `www.${props.domainName}`, // For the www subdomain
+      recordName: `www.${props.domainName}`,
       target: RecordTarget.fromAlias(new CloudFrontTarget(websiteDistribution)),
     });
 
-    // Deploy website content from a local directory to the S3 bucket
-    // Make sure you have a 'dist' folder at the root of your project (sibling to 'cdk' folder)
-    // or adjust path. It should contain your website's build output (index.html, etc.)
     new BucketDeployment(this, "DeployWebsite", {
-      sources: [Source.asset(path.join(__dirname, "../../public"))], 
+      sources: [Source.asset(path.join(__dirname, "../../public"))],
       destinationBucket: websiteBucket,
-      distribution: websiteDistribution, // Optional: to invalidate CloudFront cache on deployment
-      distributionPaths: ["/*"], // Optional: paths to invalidate
+      distribution: websiteDistribution,
+      distributionPaths: ["/*"],
     });
 
-    // Output the website URL
     new CfnOutput(this, "WebsiteUrl", {
       value: `https://${props.domainName}`,
     });
 
-    // Output the S3 bucket name
     new CfnOutput(this, "WebsiteBucketName", {
       value: websiteBucket.bucketName,
     });
-
-    // Output the Website CloudFront Distribution ID
     new CfnOutput(this, "WebsiteDistributionId", {
       value: websiteDistribution.distributionId,
     });

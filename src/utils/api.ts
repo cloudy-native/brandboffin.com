@@ -1,40 +1,41 @@
 import {
   BatchDomainCheckRequest,
   BatchDomainCheckResponse,
-  DomainCheckRequest, // Added
-  DomainCheckResponse, // Added
-  SuggestionRequest, // Added
-  SuggestionResponse, // Added
-  GetDomainSuggestionsRequest, // Added
-  GetDomainSuggestionsResponse, // Added
-  GetTLDPricesRequest, // Added
-  GetTLDPricesResponse, // Added
-  TLDPrice, // Added (used by GetTLDPricesResponse)
-  DomainSuggestion // Added (used by GetDomainSuggestionsResponse)
+  DomainCheckRequest,
+  DomainCheckResponse,
+  DomainSuggestion,
+  GetDomainSuggestionsRequest,
+  GetDomainSuggestionsResponse,
+  GetTLDPricesRequest,
+  GetTLDPricesResponse,
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse,
 } from "../../common/types";
 
 // Re-export types for external use
 export type {
-  DomainSuggestion,
-  GetDomainSuggestionsResponse,
-  SuggestionRequest,
-  SuggestionResponse,
-  DomainCheckRequest,
-  DomainCheckResponse,
   BatchDomainCheckRequest,
   BatchDomainCheckResponse,
+  DomainCheckRequest,
+  DomainCheckResponse,
+  DomainCheckResult,
+  DomainSuggestion,
+  GetDomainSuggestionsResponse,
   GetTLDPricesRequest,
   GetTLDPricesResponse,
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse,
   TLDPrice,
-  DomainCheckResult
 } from "../../common/types";
 
-const BASE_URL = "https://api.brandboffin.com";
+const API_DOMAIN = "api.brandboffin.com";
+const BASE_URL = `https://${API_DOMAIN}`;
 const CHECK_DOMAIN_API_URL = `${BASE_URL}/check-domain`;
-const GENERATE_BRAND_NAMES_API_URL = `${BASE_URL}/generate-brand-names`;
+const SUGGEST_BRAND_NAMES_API_URL = `${BASE_URL}/suggest-brand-names`;
 const CHECK_BATCH_DOMAINS_API_URL = `${BASE_URL}/check-batch-domains`;
-const GET_DOMAIN_SUGGESTIONS_API_URL = `${BASE_URL}/suggest-domains`;
+const SUGGEST_DOMAINS_API_URL = `${BASE_URL}/suggest-domains`;
 const LIST_TLDS_API_URL = `${BASE_URL}/tlds`;
+
 /**
  * Checks the availability of a domain name by calling a specified API endpoint.
  * @param domainName The domain name to check (e.g., "example.com").
@@ -97,11 +98,11 @@ export const checkDomainAvailability = async (
  * @returns A Promise that resolves with brand name suggestions.
  * @throws An error if the API request fails or the response cannot be parsed.
  */
-export const generateBrandNames = async (
-  requestPayload: SuggestionRequest
-): Promise<SuggestionResponse> => {
+export const suggestBrandNames = async (
+  requestPayload: BrandNameSuggestionRequest
+): Promise<BrandNameSuggestionResponse> => {
   try {
-    const response = await fetch(GENERATE_BRAND_NAMES_API_URL, {
+    const response = await fetch(SUGGEST_BRAND_NAMES_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +128,7 @@ export const generateBrandNames = async (
       );
     }
 
-    const data: SuggestionResponse = await response.json();
+    const data: BrandNameSuggestionResponse = await response.json();
     console.log("GenerateBrandNames response:", data);
     return data;
   } catch (error) {
@@ -177,7 +178,7 @@ export const checkBatchDomains = async (
     }
 
     const data: BatchDomainCheckResponse = await response.json();
-      return data;
+    return data;
   } catch (error) {
     console.error("Error checking batch domains:", error);
     if (error instanceof Error) {
@@ -198,15 +199,16 @@ export const checkBatchDomains = async (
 export const getDomainSuggestions = async (
   query: string,
   onlyAvailable: boolean = true,
-  suggestionCount: number = 10
+  suggestionCount: number = 50
 ): Promise<GetDomainSuggestionsResponse> => {
+  console.log("Fetching domain suggestions for", query, onlyAvailable, suggestionCount);
   const requestPayload: GetDomainSuggestionsRequest = {
     domainName: query,
     onlyAvailable,
     suggestionCount,
   };
   try {
-    const response = await fetch(GET_DOMAIN_SUGGESTIONS_API_URL, {
+    const response = await fetch(SUGGEST_DOMAINS_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -232,15 +234,30 @@ export const getDomainSuggestions = async (
       );
     }
 
-    const data: GetDomainSuggestionsResponse = await response.json();
-    console.log("GetDomainSuggestions response:", data);
-    return data;
+    const rawData = (await response.json()) as any; // Parse as any to handle potential mismatch
+    console.log("Raw GetDomainSuggestions response from API:", rawData);
+
+    // Manually map to the expected GetDomainSuggestionsResponse structure
+    const mappedSuggestions: DomainSuggestion[] = (
+      rawData.suggestions || []
+    ).map((sugg: any) => ({
+      domainName: sugg.domainName || "",
+      available: sugg.available,
+    }));
+
+    const mappedData: GetDomainSuggestionsResponse = {
+      suggestions: mappedSuggestions,
+    };
+    console.log("Mapped GetDomainSuggestions response:", mappedData); // Optional: for debugging the mapped data
+    return mappedData;
   } catch (error) {
     console.error("Error getting domain suggestions:", error);
     if (error instanceof Error) {
       throw new Error(`Failed to get domain suggestions: ${error.message}`);
     }
-    throw new Error("An unknown error occurred while getting domain suggestions.");
+    throw new Error(
+      "An unknown error occurred while getting domain suggestions."
+    );
   }
 };
 

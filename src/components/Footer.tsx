@@ -2,23 +2,35 @@ import {
   Box,
   Container,
   Divider,
-  Link,
   SimpleGrid,
   Stack,
   Text,
-  VisuallyHidden,
-  chakra,
   useColorModeValue,
 } from "@chakra-ui/react";
 import { Link as GatsbyLink } from "gatsby";
 import React from "react";
-import { FaFacebook, FaLinkedin, FaTwitter } from "react-icons/fa";
+import {
+  borderShade,
+  headerFooterBackgroundShade,
+  headingShade,
+  primaryDark,
+  primaryLight,
+} from "../theme/design";
 import BuyMeCoffeeButton from "./BuyMeCoffeeButton";
 
 const Footer = () => {
-  const bgColor = useColorModeValue("neutral.50", "neutral.900");
-  const borderColor = useColorModeValue("neutral.200", "neutral.700");
-  const textColor = useColorModeValue("neutral.700", "neutral.300");
+  const bgColor = useColorModeValue(
+    primaryLight(headerFooterBackgroundShade),
+    primaryDark(headerFooterBackgroundShade)
+  );
+  const borderColor = useColorModeValue(
+    primaryLight(borderShade),
+    primaryDark(borderShade)
+  );
+  const textColor = useColorModeValue(
+    primaryLight(headingShade),
+    primaryDark(headingShade)
+  );
 
   return (
     <Box
@@ -41,7 +53,7 @@ const Footer = () => {
                 fontFamily={"heading"}
                 fontWeight="bold"
                 fontSize="xl"
-                color="primary.500"
+                color={textColor}
               >
                 Brand Boffin
               </Text>

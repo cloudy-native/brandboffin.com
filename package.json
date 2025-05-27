@@ -17,8 +17,7 @@
     "typecheck": "tsc --noEmit",
     "theme": "chakra-cli tokens src/theme/index.ts",
     "theme:watch": "chakra-cli tokens src/theme/index.ts --watch",
-    "deploy": "gatsby build --prefix-paths && gh-pages -d public",
-    "deploy:gh": "gatsby build --prefix-paths && gh-pages -d public -b main"
+    "deploy": "aws s3 sync public/ s3://brandlywebsite-websitebucket75c24d94-k2khifnq9rwf --delete"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.816.0",
@@ -53,7 +52,6 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.29",
     "@types/react-dom": "^18.0.11",
-    "gh-pages": "^6.3.0",
     "typescript": "^5.0.2"
   }
 }

@@ -26,18 +26,19 @@ class AWSDomainUtils {
         DomainName: domain,
       });
 
+      console.log("Checking domain availability for:", domain);
       const response = await this.client.send(command);
+
+      console.log("Domain availability response:", response);
 
       return {
         domain,
-        availability: response.Availability || "UNKNOWN",
         available: response.Availability === "AVAILABLE",
       };
     } catch (error) {
       console.error(`Error checking domain ${domain}:`, error);
       return {
         domain,
-        availability: "ERROR",
         available: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
@@ -89,7 +90,7 @@ class AWSDomainUtils {
       let retries = 0;
 
       // Retry if status is PENDING
-      while (result.availability === "PENDING" && retries < maxRetries) {
+      while (!result.available && retries < maxRetries) {
         console.log(
           `Domain ${domain} status is PENDING, retrying in ${delayMs * 2}ms...`
         );
@@ -128,8 +129,8 @@ class AWSDomainUtils {
 
       if (response.SuggestionsList) {
         return response.SuggestionsList.map((suggestion) => ({
-          domainName: suggestion.DomainName || "",
-          availability: suggestion.Availability,
+            domainName: suggestion.DomainName || "",
+            available: suggestion.Availability === "AVAILABLE",
         }));
       }
       return [];

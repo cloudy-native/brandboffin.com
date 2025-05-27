@@ -6,16 +6,25 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import React from "react";
+import {
+  bgShade,
+  headingShade,
+  primaryDark,
+  primaryLight,
+  textShade,
+} from "../../theme/design";
 
-interface HomePageHeroProps {
-  colorScheme: string;
-}
+interface HomePageHeroProps {}
 
-const HomePageHero: React.FC<HomePageHeroProps> = ({ colorScheme }) => {
-  const heroBg = useColorModeValue(`${colorScheme}.100`, `${colorScheme}.900`);
-  const heroAccentColor = useColorModeValue(
-    `${colorScheme}.500`,
-    `${colorScheme}.300`
+export const HomePageHero: React.FC<HomePageHeroProps> = () => {
+  const heroBg = useColorModeValue(primaryLight(bgShade), primaryDark(bgShade));
+  const heroHeadingColor = useColorModeValue(
+    primaryLight(headingShade),
+    primaryDark(headingShade)
+  );
+  const textColor = useColorModeValue(
+    primaryLight(textShade),
+    primaryDark(textShade)
   );
 
   return (
@@ -25,7 +34,7 @@ const HomePageHero: React.FC<HomePageHeroProps> = ({ colorScheme }) => {
           as="h1"
           size={{ base: "2xl", md: "3xl" }}
           fontWeight="bold"
-          color={heroAccentColor}
+          color={heroHeadingColor}
           mb={4}
         >
           Brainstorm Your Perfect Brand Name
@@ -34,16 +43,12 @@ const HomePageHero: React.FC<HomePageHeroProps> = ({ colorScheme }) => {
           as="h2"
           size={{ base: "md", md: "lg" }}
           fontWeight="bold"
-          color={heroAccentColor}
+          color={heroHeadingColor}
           mb={4}
         >
           And a domain name to go with it!
         </Heading>
-        <Text
-          fontSize={{ base: "lg", md: "xl" }}
-          color={useColorModeValue("gray.700", "gray.200")}
-          mb={8}
-        >
+        <Text fontSize={{ base: "lg", md: "xl" }} color={textColor} mb={8}>
           Get instant domain availability checks, brand name suggestions, and
           top-level domain options. Your next big idea starts here.
         </Text>
@@ -52,4 +57,3 @@ const HomePageHero: React.FC<HomePageHeroProps> = ({ colorScheme }) => {
   );
 };
 
-export default HomePageHero;

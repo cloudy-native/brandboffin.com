@@ -4,7 +4,11 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from "@aws-sdk/client-secrets-manager";
-import { SuggestionRequest, SuggestionResponse } from "../../common/types";
+import {
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse,
+  BrandNameSuggestion,
+} from "../../common/types";
 import { CoreLambdaLogic, createApiHandler, HttpError } from "./lambda-utils";
 
 // Initialize clients outside the handler for potential reuse
@@ -60,7 +64,7 @@ async function initializeAnthropicClient(): Promise<Anthropic> {
 }
 
 function constructClaudePrompt(
-  request: SuggestionRequest,
+  request: BrandNameSuggestionRequest,
   defaultCount: number
 ): string {
   const {
@@ -71,19 +75,27 @@ function constructClaudePrompt(
     length,
     count = defaultCount,
   } = request;
-  let fullPrompt = `Generate ${count} brand name suggestions based on the following criteria:\n- Core idea/prompt: ${prompt}\n`;
+  let fullPrompt = `Generate ${count} unique brand name and tagline pairs based on the following criteria:\n- Core idea/prompt: ${prompt}\n`;
   if (industry) fullPrompt += `- Industry: ${industry}\n`;
   if (style) fullPrompt += `- Style: ${style}\n`;
   if (keywords && keywords.length > 0)
     fullPrompt += `- Keywords: ${keywords.join(", ")}\n`;
-  if (length) fullPrompt += `- Desired length (approx characters): ${length}\n`;
-  fullPrompt += `\nPlease provide only the brand names, each on a new line, without any additional text or numbering. The response should be a list of names.`;
+  if (length) fullPrompt += `- Desired brand name length (approx characters): ${length}\n`;
+  fullPrompt += `\nPlease provide the response as a list of brand name and tagline pairs. Each pair should be formatted exactly as follows, with 'Brand Name:' and 'Tagline:' on separate lines, followed by a blank line before the next pair:
+
+Brand Name: [The Brand Name]
+Tagline: [The Tagline]
+
+Brand Name: [Another Brand Name]
+Tagline: [Another Tagline]
+
+Do not include any other text, numbering, or introductory phrases.`;
   return fullPrompt;
 }
 
 const brandNameSuggesterLogic: CoreLambdaLogic<
-  SuggestionRequest,
-  SuggestionResponse
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse
 > = async (payload) => {
   if (
     !payload.body ||
@@ -102,7 +114,7 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
 
   const client = await initializeAnthropicClient();
   const systemPromptContent =
-    "You are an expert brand name generator. Your task is to provide creative and relevant brand name suggestions based on user input. Output only the names, each on a new line.";
+    "You are an expert brand strategist. Your task is to generate creative and relevant brand names and compelling taglines based on user input. Follow the user's specified output format precisely.";
   const userPromptContent = constructClaudePrompt(requestBody, requestedCount);
 
   console.log("Constructed user prompt for Claude:", userPromptContent);
@@ -126,24 +138,35 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
 
     console.log("Claude API response received.", response);
 
-    let suggestions: string[] = [];
+    let suggestions: BrandNameSuggestion[] = [];
     if (
       response.content &&
       response.content.length > 0 &&
       response.content[0].type === "text"
     ) {
-      suggestions = response.content[0].text
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(
-          (s) =>
-            s.length > 0 &&
-            !s.startsWith("Here are") &&
-            !s.startsWith("Okay, here") &&
-            !s.match(/^\d+\.\s/)
-        ); // Filter out common conversational fluff and numbered lists
+      const text = response.content[0].text.trim();
+      const pairs = text.split(/\n\s*\n/); // Split by blank lines between pairs
+      for (const pair of pairs) {
+        const lines = pair.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let name = "";
+        let tagline = "";
+        if (lines.length >= 2) {
+          const nameLine = lines.find(l => l.startsWith("Brand Name:"));
+          const taglineLine = lines.find(l => l.startsWith("Tagline:"));
+          if (nameLine) {
+            name = nameLine.substring("Brand Name:".length).trim();
+          }
+          if (taglineLine) {
+            tagline = taglineLine.substring("Tagline:".length).trim();
+          }
+        }
+        if (name && tagline) {
+          suggestions.push({ name, tagline });
+        }
+      }
     }
 
+    // Ensure we don't return more than requested, even if Claude provides more formatted pairs
     suggestions = suggestions.slice(0, requestedCount);
     return { suggestions };
   } catch (error: any) {
@@ -157,7 +180,7 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
   }
 };
 
-export const handler = createApiHandler<SuggestionRequest, SuggestionResponse>(
+export const handler = createApiHandler<BrandNameSuggestionRequest, BrandNameSuggestionResponse>(
   brandNameSuggesterLogic,
   {
     allowedMethods: ["POST"],

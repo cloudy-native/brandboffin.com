@@ -21,7 +21,6 @@ const getDomainSuggestionsLogic: CoreLambdaLogic<
   console.log(
     `Fetching domain suggestions for domainName: "${domainName}", onlyAvailable: ${onlyAvailable}, count: ${suggestionCount}`
   );
-  console.log('Request body:', payload.body);
 
   try {
     const suggestions = await awsDomainUtils.getDomainSuggestions(

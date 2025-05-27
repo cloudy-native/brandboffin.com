@@ -1,6 +1,11 @@
-import DomainAvailability from "./DomainAvailability";
-import DomainSuggestions from "./DomainSuggestions";
-import HomePageHero from "./HomePageHero";
-import TLDPricing from "./TLDPricing";
+import { DomainAvailability } from "./DomainAvailability";
+import { HomePageHero } from "./HomePageHero";
+import { TLDPricing } from "./TLDPricing";
+import { BrandNameGeneratorSection } from "./BrandNameGeneratorSection";
 
-export { DomainAvailability, DomainSuggestions, HomePageHero, TLDPricing };
+export {
+  DomainAvailability,
+  HomePageHero,
+  TLDPricing,
+  BrandNameGeneratorSection,
+};

@@ -22,12 +22,12 @@ import React from "react";
 import { FaList } from "react-icons/fa";
 import { listTlds, type GetTLDPricesResponse, type TLDPrice } from "../../utils/api";
 import Section from "../Section";
+import { primaryColorScheme } from "../../theme/design";
 
 interface TLDPricingProps {
-  colorScheme: string;
 }
 
-const TLDPricing: React.FC<TLDPricingProps> = ({ colorScheme }) => {
+export const TLDPricing: React.FC<TLDPricingProps> = () => {
   const [isTldListVisible, setIsTldListVisible] =
     React.useState<boolean>(false);
   const [tldList, setTldList] = React.useState<GetTLDPricesResponse | null>(null);
@@ -57,10 +57,11 @@ const TLDPricing: React.FC<TLDPricingProps> = ({ colorScheme }) => {
       setTldsLoading(false);
     }
   };
+  
   return (
-    <Section title="Top-Level Domains" colorScheme={colorScheme}>
+    <Section title="Top-Level Domains">
       <Button
-        colorScheme={colorScheme}
+        colorScheme={primaryColorScheme}
         onClick={handleToggleTldSection}
         isLoading={tldsLoading && (!tldList || tldList.prices.length === 0)} // Show loading only on initial fetch
         leftIcon={<FaList />}
@@ -83,7 +84,7 @@ const TLDPricing: React.FC<TLDPricingProps> = ({ colorScheme }) => {
                 thickness="4px"
                 speed="0.65s"
                 emptyColor="gray.200"
-                colorScheme={colorScheme}
+                colorScheme={primaryColorScheme}
                 size="xl"
                 alignSelf="center"
                 mt={4}
@@ -150,4 +151,3 @@ const TLDPricing: React.FC<TLDPricingProps> = ({ colorScheme }) => {
   );
 };
 
-export default TLDPricing;

@@ -3,18 +3,17 @@ import * as React from "react";
 import {
   HomePageHero,
   DomainAvailability,
-  DomainSuggestions,
   TLDPricing,
+  BrandNameGeneratorSection,
 } from "../components/sections/";
 
 const IndexPage: React.FC<PageProps> = () => {
   return (
     <>
-      <HomePageHero colorScheme="blue" />
-      <DomainAvailability colorScheme="purple" />
-      <DomainSuggestions colorScheme="green" />
-      <TLDPricing colorScheme="orange" />
-    </>
+      <HomePageHero />
+      <DomainAvailability />
+      <BrandNameGeneratorSection />
+    </> 
   );
 };
 
