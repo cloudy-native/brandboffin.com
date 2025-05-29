@@ -58,10 +58,14 @@ export interface BrandDomainStatus {
   isChecking: boolean;
   isAvailable?: boolean;
   error?: string | null;
+  // New fields for inline alternatives
+  alternativeSuggestions?: GetDomainSuggestionsResponse['suggestions'];
+  showAlternatives?: boolean;
+  isFetchingAlternatives?: boolean;
+  alternativesError?: string | null;
 }
 
-interface BrandNameGeneratorSectionProps {
-}
+interface BrandNameGeneratorSectionProps {}
 
 const formatDomainFromBrand = (brandName: string): string => {
   return `${brandName.toLowerCase().replace(/\s+/g, "")}.com`;
@@ -80,8 +84,7 @@ export const BrandNameGeneratorSection: React.FC<
     null
   );
 
-  const [selectedBrandForAlternatives, setSelectedBrandForAlternatives] =
-    React.useState<string | null>(null);
+  
 
   const fetchAlternativeSuggestionsApi = async (
     baseName: string
@@ -100,46 +103,81 @@ export const BrandNameGeneratorSection: React.FC<
     }
   };
 
-  const handleSuggestAlternativesClick = async (brandName: string) => {
-    // If clicking the same brand's button again, hide alternatives
-    if (selectedBrandForAlternatives === brandName) {
-      setSelectedBrandForAlternatives(null);
-      setAlternativeSuggestionsData(null);
-      setAlternativesError(null);
-      setIsFetchingAlternatives(false);
-      return;
-    }
+  const handleSuggestAlternativesClick = async (brandId: string) => {
+    setBrandDomainStatuses((prevStatuses) =>
+      prevStatuses
+        ? prevStatuses.map((brand) => {
+        if (brand.id === brandId) {
+          // Toggle showAlternatives for the clicked brand
+          const shouldShow = !brand.showAlternatives;
+          if (!shouldShow) {
+            // If hiding, clear suggestions and error
+            return {
+              ...brand,
+              showAlternatives: false,
+              alternativeSuggestions: undefined,
+              alternativesError: null,
+              isFetchingAlternatives: false, // Ensure loading is stopped
+            };
+          }
+          // If showing, mark for fetching and clear previous (if any)
+          return {
+            ...brand,
+            showAlternatives: true,
+            isFetchingAlternatives: true,
+            alternativeSuggestions: undefined,
+            alternativesError: null,
+          };
+        } else {
+          // Collapse other brands
+          return { ...brand, showAlternatives: false, isFetchingAlternatives: false };
+        }
+      })
+      : null
+    );
 
-    setSelectedBrandForAlternatives(brandName);
-    setIsFetchingAlternatives(true);
-    setAlternativesError(null);
-    setAlternativeSuggestionsData(null);
-
-    try {
-      const data = await fetchAlternativeSuggestionsApi(brandName);
-      console.log("Alternative suggestions for", brandName, data);
-      setAlternativeSuggestionsData(data);
-    } catch (error: any) {
-      setAlternativesError(
-        error.message ||
-          "An unexpected error occurred while fetching alternatives."
-      );
-    } finally {
-      setIsFetchingAlternatives(false);
-    }
+    // Find the brand to fetch data for
+    const targetBrand = brandDomainStatuses?.find((b) => b.id === brandId);
+    if (targetBrand && targetBrand.showAlternatives) { // Check if it was toggled to show
+      try {
+        // Use targetBrand.domain for fetching, as it's the formatted domain
+        const data = await fetchAlternativeSuggestionsApi(targetBrand.domain);
+        setBrandDomainStatuses((prevStatuses) =>
+          prevStatuses
+            ? prevStatuses.map((brand) =>
+                brand.id === brandId
+                  ? {
+                      ...brand,
+                      alternativeSuggestions: data.suggestions,
+                      isFetchingAlternatives: false,
+                    }
+                  : brand
+              )
+            : null
+        );
+      } catch (error: any) {
+        setBrandDomainStatuses((prevStatuses) =>
+          prevStatuses
+            ? prevStatuses.map((brand) =>
+                brand.id === brandId
+                  ? {
+                      ...brand,
+                      alternativesError:
+                        error.message || "Failed to fetch alternatives.",
+                      isFetchingAlternatives: false,
+                    }
+                  : brand
+              )
+            : null
+        );
+      } 
+    } 
   };
   const [industry, setIndustry] = React.useState<string>("");
   const [style, setStyle] = React.useState<string>("");
   const [keywords, setKeywords] = React.useState<string>("");
 
-  // State for Inline Alternative Suggestions
-  const [alternativeSuggestionsData, setAlternativeSuggestionsData] =
-    React.useState<GetDomainSuggestionsResponse | null>(null);
-  const [isFetchingAlternatives, setIsFetchingAlternatives] =
-    React.useState<boolean>(false);
-  const [alternativesError, setAlternativesError] = React.useState<
-    string | null
-  >(null);
+  
   const [length, setLength] = React.useState<string>(""); // Approx characters
   const [count, setCount] = React.useState<string>(""); // Number of suggestions
 
@@ -151,7 +189,6 @@ export const BrandNameGeneratorSection: React.FC<
     setBrandNamesLoading(true);
     setBrandNamesError(null);
     setBrandDomainStatuses(null); // Clear previous results
-    setAlternativeSuggestionsData(null);
 
     try {
       const requestBody: BrandNameSuggestionRequest = { prompt: brandPrompt };
@@ -375,32 +412,24 @@ export const BrandNameGeneratorSection: React.FC<
               <Icon as={CheckCircleIcon} color="green.500" mr={1} /> Available
               <Icon as={SmallCloseIcon} color="red.500" mx={1} /> Unavailable
             </Text>
-            <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={6}>
+            <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={4}>
               {brandDomainStatuses.map((brand) => (
                 <Card key={brand.id}>
-                  <CardHeader pb={2}>
+                  <CardBody>
                     <Heading as="h4" size="md" noOfLines={2} title={brand.name}>
                       {brand.name}
                     </Heading>
-                  </CardHeader>
-                  <CardBody pt={0}>
                     {brand.tagline && (
-                      <Text fontSize="sm" color="gray.600" fontStyle="italic" mb={3} noOfLines={2} title={brand.tagline}>
+                      <Text
+                        fontSize="sm"
+                        color="gray.600"
+                        fontStyle="italic"
+                        noOfLines={2}
+                        title={brand.tagline}
+                      >
                         {brand.tagline}
                       </Text>
                     )}
-                    <HStack spacing={2} align="center" mb={2}>
-                      {brand.isChecking ? (
-                        <Spinner size="xs" color="blue.500" />
-                      ) : brand.isAvailable ? (
-                        <Icon as={CheckCircleIcon} color="green.500" />
-                      ) : (
-                        <Icon as={SmallCloseIcon} color="red.500" />
-                      )}
-                      <Text fontFamily="monospace" fontSize="sm">
-                        {brand.domain}
-                      </Text>
-                    </HStack>
                     <Badge
                       colorScheme={
                         brand.isChecking
@@ -414,11 +443,23 @@ export const BrandNameGeneratorSection: React.FC<
                     >
                       {brand.isChecking ? "Checking..." : ""}
                     </Badge>
+                    <HStack align="center">
+                      {brand.isChecking ? (
+                        <Spinner size="xs" color="blue.500" />
+                      ) : brand.isAvailable ? (
+                        <Icon as={CheckCircleIcon} color="green.500" />
+                      ) : (
+                        <Icon as={SmallCloseIcon} color="red.500" />
+                      )}
+                      <Text fontFamily="monospace" fontSize="sm">
+                        {brand.domain}
+                      </Text>
+                    </HStack>
+
                     {brand.error && (
                       <Text
                         fontSize="xs"
                         color="red.500"
-                        mt={1}
                         noOfLines={2}
                         title={brand.error}
                       >
@@ -426,17 +467,39 @@ export const BrandNameGeneratorSection: React.FC<
                       </Text>
                     )}
                   </CardBody>
-                  <CardFooter pt={2}>
+                  <CardFooter flexDirection="column" alignItems="stretch">
                     <Button
-                      variant="solid"
+                      variant="ghost"
                       colorScheme={primaryColorScheme}
-                      onClick={() =>
-                        handleSuggestAlternativesClick(brand.domain)
-                      }
-                      width="100%"
+                      size="sm"
+                      isLoading={brand.isFetchingAlternatives}
+                      onClick={() => handleSuggestAlternativesClick(brand.id)}
+                      leftIcon={<QuestionOutlineIcon />}
                     >
-                      Find alternative domains
+                      {brand.showAlternatives && brand.alternativeSuggestions
+                        ? "Hide Alternatives"
+                        : "Find Alternate Domains"}
                     </Button>
+                    <Collapse in={brand.showAlternatives && (!!brand.alternativeSuggestions || !!brand.alternativesError || brand.isFetchingAlternatives)} animateOpacity>
+                      <Box mt={4}>
+                        {brand.isFetchingAlternatives && <Spinner size="md" />}
+                        {brand.alternativesError && (
+                          <Alert status="error" mt={2} borderRadius="md">
+                            <AlertIcon />
+                            {brand.alternativesError}
+                          </Alert>
+                        )}
+                        {brand.alternativeSuggestions && brand.alternativeSuggestions.length > 0 && (
+                          <AlternativeSuggestionsDisplay
+                            suggestions={brand.alternativeSuggestions}
+                            domainName={brand.domain} // Pass the original domain for context
+                          />
+                        )}
+                        {brand.alternativeSuggestions && brand.alternativeSuggestions.length === 0 && !brand.isFetchingAlternatives && !brand.alternativesError && (
+                           <Text fontSize="sm" color="gray.500" mt={2}>No alternative suggestions found.</Text>
+                        )}
+                      </Box>
+                    </Collapse>
                   </CardFooter>
                 </Card>
               ))}
@@ -452,53 +515,7 @@ export const BrandNameGeneratorSection: React.FC<
             </Text>
           )}
 
-        {/* Inline Alternative Suggestions Section */}
-        <Collapse in={selectedBrandForAlternatives !== null} animateOpacity>
-          {isFetchingAlternatives && (
-            <VStack spacing={4} align="center" justify="center" minH="200px">
-              <Spinner
-                size="xl"
-                color={`${primaryColorScheme}.500`}
-                thickness="4px"
-              />
-              <Text>Searching for alternatives...</Text>
-            </VStack>
-          )}
-          {alternativesError && (
-            <Alert status="error" mt={4}>
-              <AlertIcon />
-              {alternativesError}
-            </Alert>
-          )}
-          {!isFetchingAlternatives && alternativeSuggestionsData && (
-            <>
-              <Heading
-                as="h3"
-                size="lg"
-                color={brandIdeasHeadingColor}
-                pb={2}
-                mt={6}
-              >
-                Alternative Domain Names for {selectedBrandForAlternatives}
-              </Heading>
-              <AlternativeSuggestionsDisplay
-                suggestionsData={alternativeSuggestionsData}
-                onSuggestionClick={(domainName: string) => {
-                  console.log(`Alternative selected: ${domainName}`);
-                }}
-              />
-            </>
-          )}
-          {!isFetchingAlternatives &&
-            !alternativeSuggestionsData &&
-            !alternativesError &&
-            selectedBrandForAlternatives && (
-              <Text mt={4}>
-                No alternative suggestions found for "
-                {selectedBrandForAlternatives}".
-              </Text>
-            )}
-        </Collapse>
+
       </Box>
     </Section>
   );

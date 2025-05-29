@@ -1,9 +1,9 @@
-import { AWSDomainUtils } from "./aws-domain-utils";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./lambda-utils";
+import { AWSDomainUtils } from "./utils/aws-domain-utils";
+import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
 import {
   GetDomainSuggestionsRequest,
   GetDomainSuggestionsResponse,
-} from "../../common/types";
+} from "../../../common/types";
 
 // Instantiate the utils class once per container instance
 const awsDomainUtils = new AWSDomainUtils();
@@ -12,10 +12,13 @@ const getDomainSuggestionsLogic: CoreLambdaLogic<
   GetDomainSuggestionsRequest,
   GetDomainSuggestionsResponse
 > = async (payload) => {
-  const { domainName, onlyAvailable, suggestionCount } = payload.body as GetDomainSuggestionsRequest;
+  const domainName = payload.queryStringParameters?.domainName;
+  const onlyAvailable = payload.queryStringParameters?.onlyAvailable === 'true';
+  const suggestionCount = payload.queryStringParameters?.suggestionCount ? 
+    parseInt(payload.queryStringParameters.suggestionCount, 10) : undefined;
 
   if (!domainName) {
-    throw new HttpError("domainName is required and must be a non-empty string.", 400);
+    throw new HttpError("domainName is required and must be a non-empty string query parameter.", 400);
   }
 
   console.log(
@@ -45,6 +48,6 @@ export const handler = createApiHandler<
   GetDomainSuggestionsRequest,
   GetDomainSuggestionsResponse
 >(getDomainSuggestionsLogic, {
-  allowedMethods: ["POST"],
-  isBodyRequired: true,
+  allowedMethods: ["GET"],
+  isBodyRequired: false,
 });

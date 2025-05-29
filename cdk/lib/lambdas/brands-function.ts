@@ -8,8 +8,8 @@ import {
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
   BrandNameSuggestion,
-} from "../../common/types";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./lambda-utils";
+} from "../../../common/types";
+import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
 
 // Initialize clients outside the handler for potential reuse
 const secretsClient = new SecretsManagerClient({});
@@ -168,6 +168,9 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
 
     // Ensure we don't return more than requested, even if Claude provides more formatted pairs
     suggestions = suggestions.slice(0, requestedCount);
+
+    console.log("Returning suggestions:", suggestions);
+    
     return { suggestions };
   } catch (error: any) {
     console.error("Error calling Claude API:", error.message, error);

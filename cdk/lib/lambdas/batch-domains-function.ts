@@ -1,9 +1,9 @@
 import {
   BatchDomainCheckRequest,
   BatchDomainCheckResponse,
-} from "../../common/types";
-import { AWSDomainUtils } from "./aws-domain-utils";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./lambda-utils";
+} from "../../../common/types";
+import { AWSDomainUtils } from "./utils/aws-domain-utils";
+import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
 
 const awsDomainUtils = new AWSDomainUtils();
 

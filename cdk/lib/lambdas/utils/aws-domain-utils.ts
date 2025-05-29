@@ -8,7 +8,7 @@ import {
   DomainCheckResult,
   DomainSuggestion,
   TLDPrice,
-} from "../../common/types";
+} from "../../../../common/types";
 
 class AWSDomainUtils {
   private client: Route53DomainsClient;
@@ -35,13 +35,18 @@ class AWSDomainUtils {
         domain,
         available: response.Availability === "AVAILABLE",
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error checking domain ${domain}:`, error);
-      return {
-        domain,
-        available: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+      // Check if it's an AWS SDK error and potentially extract more specific info
+      // For example, the error might have a $metadata property or a name like 'InvalidInput'
+      let errorMessage = "Failed to check domain availability.";
+      if (error.name === 'InvalidInput') {
+        errorMessage = `Invalid domain name or TLD: ${domain}. Please ensure the format is correct and the TLD is valid.`;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      // Re-throw the error so it can be caught by the Lambda handler
+      throw new Error(errorMessage);
     }
   }
 

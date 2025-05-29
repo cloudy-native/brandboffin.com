@@ -1,4 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { Duration } from 'aws-cdk-lib';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction, NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { Construct } from 'constructs';
+import { Cors } from 'aws-cdk-lib/aws-apigateway';
 
 // Define a more specific type for the core logic handler
 export type CoreLambdaLogic<TRequestBody, TResponseBody> = (
@@ -30,6 +36,59 @@ export class HttpError extends Error {
   }
 }
 
+// Common Lambda function configuration
+export const COMMON_FUNCTION_PROPS: Partial<NodejsFunctionProps> = {
+  runtime: Runtime.NODEJS_18_X,
+  handler: 'handler',
+  timeout: Duration.seconds(60),
+  memorySize: 1024,
+  logRetention: RetentionDays.ONE_WEEK,
+};
+
+// Common bundling configuration
+export const COMMON_BUNDLING_CONFIG = {
+  minify: true,
+  sourceMap: true,
+  esbuildArgs: {
+    "--packages": "bundle",
+    "--tree-shaking": "true",
+    "--platform": "node",
+  },
+  externalModules: ["@aws-sdk/*"],
+};
+
+// Common environment configuration
+export const COMMON_ENVIRONMENT = {
+  NODE_OPTIONS: "--enable-source-maps",
+  NODE_ENV: "production",
+};
+
+// Factory function for creating Lambda functions with common configuration
+export function createLambdaFunction(
+  scope: Construct,
+  id: string,
+  props: Partial<NodejsFunctionProps> & {
+    nodeModules?: string[];
+    // environment is already part of NodejsFunctionProps
+    // entry is already part of NodejsFunctionProps
+  } = {}
+): NodejsFunction {
+  const { nodeModules, ...overrideProps } = props;
+  return new NodejsFunction(scope, id, {
+    ...COMMON_FUNCTION_PROPS, // Start with common defaults
+    ...overrideProps, // Apply overrides from props (like entry, environment, memorySize)
+    bundling: {
+      ...COMMON_BUNDLING_CONFIG,
+      nodeModules: nodeModules || [], // Specific handling for nodeModules
+    },
+    // Ensure environment from props merges with COMMON_ENVIRONMENT correctly
+    environment: {
+      ...COMMON_ENVIRONMENT,
+      ...(overrideProps.environment || {}),
+    },
+  });
+}
+
 export function createApiHandler<TRequestBody, TResponseBody>(
   coreLogic: CoreLambdaLogic<TRequestBody, TResponseBody>,
   options: ApiHandlerOptions<TRequestBody>
@@ -38,16 +97,16 @@ export function createApiHandler<TRequestBody, TResponseBody>(
   return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("Event:", event);
     const corsHeaders = {
-      'Access-Control-Allow-Origin': process.env.CORS_ALLOW_ORIGIN || '*',
-      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-      'Access-Control-Allow-Methods': options.allowedMethods.join(', ') + (options.allowedMethods.includes('OPTIONS') ? '' : ', OPTIONS'),
+      'Access-Control-Allow-Origin': '*', 
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE, PATCH', 
+      'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, Accept', 
       'Content-Type': 'application/json',
     };
-console.log("Cors headers:", corsHeaders);
 
+    // OPTIONS requests should now be handled by API Gateway CORS, but keep as fallback
     if (event.httpMethod === 'OPTIONS') {
       console.log("Returning 204 for OPTIONS");
-      return { statusCode: 204, headers: corsHeaders, body: '' }; // 204 No Content for OPTIONS
+      return { statusCode: 204, headers: corsHeaders, body: '' };
     }
 
     if (!options.allowedMethods.includes(event.httpMethod)) {

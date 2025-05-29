@@ -18,6 +18,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import React, { useState, useEffect, useRef } from "react";
+import validator from 'validator';
 import { FaSearch } from "react-icons/fa";
 import {
   checkDomainAvailability,
@@ -31,6 +32,19 @@ import { primaryColorScheme } from "../../theme/design";
 
 interface DomainAvailabilityProps {
 }
+
+const sanitizeDomainInput = (input: string): string => {
+  if (typeof input !== 'string') return '';
+  return input
+    .toLowerCase()                         // Convert to lowercase
+    .trim()                                // Trim leading/trailing whitespace
+    // First, remove all internal spaces. Then, remove invalid chars.
+    // This order prevents creating invalid sequences like 'my- domain' -> 'my--domain' if space was replaced by hyphen directly.
+    .replace(/\s+/g, '')                   // Remove all internal spaces (e.g., "my domain.com" -> "mydomain.com")
+    .replace(/[^a-z0-9.-]/g, '');        // Remove characters not valid in domain names (keeps alphanumeric, dots, hyphens)
+    // No need to validate against a regex here as validator.isFQDN will be used
+};
+
 
 export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
   const [inputValue, setInputValue] = useState<string>("");
@@ -83,7 +97,8 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
   };
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(event.target.value);
+    const sanitized = sanitizeDomainInput(event.target.value);
+    setInputValue(sanitized);
     setApiResult(null); // Clear previous results when input changes
     setError(null);
     setDomainSuggestions(null);
@@ -93,16 +108,27 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
   };
 
   const handleSubmit = async () => {
-    const originalTrimmedInput = inputValue.trim();
+    // Basic check, validator.isFQDN will be the main gatekeeper in UI
+    if (!inputValue.trim()) {
+      setError("Please enter a domain name.");
+      return;
+    }
+    // The UI (button disable and enter key) will now primarily rely on validator.isFQDN.
+    // The logic here for appending .com might still be useful if a user somehow bypasses UI checks
+    // or if we decide to allow single-word submissions again with a different UI cue.
 
-    if (!originalTrimmedInput) {
+    // inputValue is already sanitized by handleInputChange (lowercase, no internal spaces, valid chars)
+    // It will also be trimmed, but an extra trim here doesn't hurt and guards against edge cases.
+    const currentSanitizedValue = inputValue.trim();
+
+    if (!currentSanitizedValue) {
       setError("Please enter a domain name.");
       setIsLoading(false);
       setSuggestionsLoading(false);
       return;
     }
 
-    let domainToSubmit = originalTrimmedInput;
+    let domainToSubmit = currentSanitizedValue;
 
     // Handle trailing dot or if input is just a dot
     if (domainToSubmit.endsWith(".") && domainToSubmit.length > 1) {
@@ -179,12 +205,22 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
           <FormLabel srOnly>Domain Name</FormLabel>
           <HStack>
             <Input
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  // Prevent default form submission if wrapped in a form
+                  e.preventDefault(); 
+                  // Check if domain is a valid FQDN
+                  if (validator.isFQDN(inputValue)) {
+                    handleSubmit();
+                  }
+                }
+              }}
               placeholder="Enter domain name (e.g., example.com)"
               value={inputValue}
               onChange={handleInputChange}
-              onKeyPress={(e) => e.key === "Enter" && handleSubmit()}
             />
             <Button
+              isDisabled={!validator.isFQDN(inputValue) || isLoading}
               colorScheme={primaryColorScheme}
               onClick={handleSubmit}
               isLoading={isLoading && !apiResult && !error} // Show loading on button only during initial check
@@ -266,7 +302,7 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
             )}
             {domainSuggestions && (
               <AlternativeSuggestionsDisplay
-                suggestionsData={domainSuggestions}
+                suggestions={domainSuggestions.suggestions}
                 onSuggestionClick={handleSuggestionClick}
               />
             )}

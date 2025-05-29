@@ -1,50 +1,34 @@
+import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import {
-  CfnOutput,
-  Duration,
-  Fn,
-  RemovalPolicy,
-  Stack,
-  StackProps,
-} from "aws-cdk-lib";
-import {
-  BasePathMapping,
   Cors,
+  CorsOptions,
   DomainName,
   EndpointType,
   LambdaIntegration,
-  RestApi,
+  LambdaRestApi,
 } from "aws-cdk-lib/aws-apigateway";
 import {
   Certificate,
   CertificateValidation,
 } from "aws-cdk-lib/aws-certificatemanager";
 import {
-  AllowedMethods,
   CachePolicy,
   Distribution,
   OriginAccessIdentity,
-  OriginProtocolPolicy,
-  OriginRequestPolicy,
-  PriceClass,
   ViewerProtocolPolicy,
 } from "aws-cdk-lib/aws-cloudfront";
-import { HttpOrigin, S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
-import { Runtime } from "aws-cdk-lib/aws-lambda";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { ARecord, HostedZone, RecordTarget } from "aws-cdk-lib/aws-route53";
-import { CloudFrontTarget } from "aws-cdk-lib/aws-route53-targets";
 import {
-  BlockPublicAccess,
-  Bucket,
-  BucketEncryption,
-} from "aws-cdk-lib/aws-s3";
+  ApiGatewayDomain,
+  CloudFrontTarget,
+} from "aws-cdk-lib/aws-route53-targets";
+import { BlockPublicAccess, Bucket } from "aws-cdk-lib/aws-s3";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
-
-import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Statement } from "cdk-iam-floyd";
 import { Construct } from "constructs";
-import * as path from "path";
+import { createLambdaFunction } from "./lambdas/utils/lambda-utils";
 
 const CLAUDE_SECRET_NAME = process.env.CLAUDE_SECRET_NAME || "claude-api";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20240620";
@@ -65,63 +49,28 @@ export class BrandBoffinStack extends Stack {
       CLAUDE_SECRET_NAME
     );
 
-    const commonFunctionProps = {
-      runtime: Runtime.NODEJS_18_X,
-      handler: "handler",
-      timeout: Duration.seconds(60),
-      memorySize: 512,
-      logRetention: RetentionDays.ONE_WEEK,
-    };
-
-    const brandNameSuggesterFunction = new NodejsFunction(
+    const brandNameSuggesterFunction = createLambdaFunction(
       this,
-      "brand-name-suggester-function",
+      "brands-function",
       {
-        ...commonFunctionProps,
-        bundling: {
-          minify: true,
-          sourceMap: true,
-          // Fix for esbuild 0.22.0+ breaking change (notice #30717)
-          esbuildArgs: {
-            "--packages": "bundle",
-            "--tree-shaking": "true",
-            "--platform": "node",
-          },
-          externalModules: ["@aws-sdk/*"],
-          nodeModules: ["@aws-sdk/client-secrets-manager"],
-        },
+        entry: "lib/lambdas/brands-function.ts",
+        memorySize: 1024, // Increased memory
+        nodeModules: ["@aws-sdk/client-secrets-manager"],
         environment: {
-          NODE_OPTIONS: "--enable-source-maps",
           CLAUDE_MODEL,
           CLAUDE_SECRET_NAME,
-          NODE_ENV: "production",
         },
       }
     );
 
     claudeSecret.grantRead(brandNameSuggesterFunction);
 
-    const checkOneDomainFunction = new NodejsFunction(
+    const checkOneDomainFunction = createLambdaFunction(
       this,
-      "check-domain-function",
+      "domains-function",
       {
-        ...commonFunctionProps,
-        bundling: {
-          minify: true,
-          sourceMap: true,
-          // Fix for esbuild 0.22.0+ breaking change (notice #30717)
-          esbuildArgs: {
-            "--packages": "bundle",
-            "--tree-shaking": "true",
-            "--platform": "node",
-          },
-          externalModules: ["@aws-sdk/*"],
-          nodeModules: ["@aws-sdk/client-route-53-domains"],
-        },
-        environment: {
-          NODE_OPTIONS: "--enable-source-maps",
-          NODE_ENV: "production",
-        },
+        entry: "lib/lambdas/domains-function.ts",
+        nodeModules: ["@aws-sdk/client-route-53-domains"],
       }
     );
 
@@ -129,27 +78,12 @@ export class BrandBoffinStack extends Stack {
       new Statement.Route53domains().allow().toCheckDomainAvailability()
     );
 
-    const checkBatchDomainsFunction = new NodejsFunction(
+    const checkBatchDomainsFunction = createLambdaFunction(
       this,
-      "check-batch-domains-function",
+      "batch-domains-function",
       {
-        ...commonFunctionProps,
-        bundling: {
-          minify: true,
-          sourceMap: true,
-          // Fix for esbuild 0.22.0+ breaking change (notice #30717)
-          esbuildArgs: {
-            "--packages": "bundle",
-            "--tree-shaking": "true",
-            "--platform": "node",
-          },
-          externalModules: ["@aws-sdk/*"],
-          nodeModules: ["@aws-sdk/client-route-53-domains"],
-        },
-        environment: {
-          NODE_OPTIONS: "--enable-source-maps",
-          NODE_ENV: "production",
-        },
+        entry: "lib/lambdas/batch-domains-function.ts",
+        nodeModules: ["@aws-sdk/client-route-53-domains"],
       }
     );
 
@@ -157,26 +91,12 @@ export class BrandBoffinStack extends Stack {
       new Statement.Route53domains().allow().toCheckDomainAvailability()
     );
 
-    const getDomainSuggestionsFunction = new NodejsFunction(
+    const getDomainSuggestionsFunction = createLambdaFunction(
       this,
       "get-domain-suggestions-function",
       {
-        ...commonFunctionProps,
-        bundling: {
-          minify: true,
-          sourceMap: true,
-          esbuildArgs: {
-            "--packages": "bundle",
-            "--tree-shaking": "true",
-            "--platform": "node",
-          },
-          externalModules: ["@aws-sdk/*"],
-          nodeModules: ["@aws-sdk/client-route-53-domains"],
-        },
-        environment: {
-          NODE_OPTIONS: "--enable-source-maps",
-          NODE_ENV: "production",
-        },
+        entry: "lib/lambdas/get-domain-suggestions-function.ts",
+        nodeModules: ["@aws-sdk/client-route-53-domains"],
       }
     );
 
@@ -184,26 +104,12 @@ export class BrandBoffinStack extends Stack {
       new Statement.Route53domains().allow().toGetDomainSuggestions()
     );
 
-    const listTldsFunction = new NodejsFunction(
+    const listTldsFunction = createLambdaFunction(
       this,
       "get-tld-prices-function",
       {
-        ...commonFunctionProps,
-        bundling: {
-          minify: true,
-          sourceMap: true,
-          esbuildArgs: {
-            "--packages": "bundle",
-            "--tree-shaking": "true",
-            "--platform": "node",
-          },
-          externalModules: ["@aws-sdk/*"],
-          nodeModules: ["@aws-sdk/client-route-53-domains"],
-        },
-        environment: {
-          NODE_OPTIONS: "--enable-source-maps",
-          NODE_ENV: "production",
-        },
+        entry: "lib/lambdas/get-tld-prices-function.ts",
+        nodeModules: ["@aws-sdk/client-route-53-domains"],
       }
     );
 
@@ -212,9 +118,9 @@ export class BrandBoffinStack extends Stack {
     );
 
     // Create API Gateway
-    const api = new RestApi(this, "BrandCheckerApi", {
-      restApiName: "Brand Checker API",
-      description: "API for checking brand names and domain availability",
+    const api = new LambdaRestApi(this, "BrandBoffinApi", {
+      handler: brandNameSuggesterFunction, // Default handler
+      proxy: false,
       defaultCorsPreflightOptions: {
         allowOrigins: Cors.ALL_ORIGINS,
         allowMethods: Cors.ALL_METHODS,
@@ -223,147 +129,129 @@ export class BrandBoffinStack extends Stack {
           "X-Amz-Date",
           "Authorization",
           "X-Api-Key",
+          "X-Amz-Security-Token",
         ],
-        maxAge: Duration.days(1),
-      },
-      deployOptions: {
-        stageName: "prod",
-        throttlingRateLimit: 10,
-        throttlingBurstLimit: 20,
       },
     });
 
-    api.root
-      .addResource("suggest-brand-names")
-      .addMethod("POST", new LambdaIntegration(brandNameSuggesterFunction));
+    // Define CORS options for all resources
+    const defaultCorsPreflightOptions: CorsOptions = {
+      allowOrigins: Cors.ALL_ORIGINS,
+      allowMethods: Cors.ALL_METHODS,
+      allowHeaders: [
+        "Content-Type",
+        "X-Amz-Date",
+        "Authorization",
+        "X-Api-Key",
+        "X-Amz-Security-Token",
+      ],
+    };
 
-    api.root
-      .addResource("check-domain")
-      .addMethod("POST", new LambdaIntegration(checkOneDomainFunction));
+    // Add API routes
+    const brands = api.root.addResource("brands", {
+      defaultCorsPreflightOptions,
+    });
+    brands.addMethod("POST", new LambdaIntegration(brandNameSuggesterFunction));
 
-    api.root
-      .addResource("check-batch-domains")
-      .addMethod("POST", new LambdaIntegration(checkBatchDomainsFunction));
+    const domains = api.root.addResource("domains", {
+      defaultCorsPreflightOptions,
+    });
+    domains.addMethod("GET", new LambdaIntegration(checkOneDomainFunction));
 
-    api.root
-      .addResource("suggest-domains")
-      .addMethod("POST", new LambdaIntegration(getDomainSuggestionsFunction));
+    const batchCheck = domains.addResource("batch-check", {
+      defaultCorsPreflightOptions,
+    });
+    batchCheck.addMethod(
+      "POST",
+      new LambdaIntegration(checkBatchDomainsFunction)
+    );
 
-    api.root
-      .addResource("tlds")
-      .addMethod("POST", new LambdaIntegration(listTldsFunction));
+    const suggestions = domains.addResource("suggestions", {
+      defaultCorsPreflightOptions,
+    });
+    suggestions.addMethod(
+      "GET",
+      new LambdaIntegration(getDomainSuggestionsFunction)
+    );
 
+    const tlds = api.root.addResource("tlds", {
+      defaultCorsPreflightOptions,
+    });
+    tlds.addMethod("GET", new LambdaIntegration(listTldsFunction));
+
+    // Create S3 bucket for website hosting
+    const websiteBucket = new Bucket(this, "WebsiteBucket", {
+      websiteIndexDocument: "index.html",
+      websiteErrorDocument: "404.html",
+      publicReadAccess: true,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ACLS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    // Deploy website files from ../public to S3 bucket
+    new BucketDeployment(this, "WebsiteDeployment", {
+      sources: [Source.asset("../public")],
+      destinationBucket: websiteBucket,
+    });
+
+    const rootDomain = domainName.split(".").slice(-2).join("."); 
     const hostedZone = HostedZone.fromLookup(this, "HostedZone", {
-      domainName,
+      domainName: rootDomain,
     });
-    const certificate = new Certificate(this, "ApiCertificate", {
-      domainName: apiDomainName,
+
+    // Create single SSL certificate for all domains
+    const certificate = new Certificate(this, "Certificate", {
+      domainName: rootDomain,
+      subjectAlternativeNames: [`www.${rootDomain}`, apiDomainName],
       validation: CertificateValidation.fromDns(hostedZone),
     });
 
-    const apiRegionalDomain = new DomainName(this, "ApiRegionalDomain", {
-      domainName: apiDomainName,
-      certificate,
-      endpointType: EndpointType.REGIONAL,
-    });
-
-    new BasePathMapping(this, "ApiMapping", {
-      domainName: apiRegionalDomain,
-      restApi: api,
-    });
-
-    const apiGatewayDomainName = Fn.select(2, Fn.split("/", api.url));
-    const apiGatewayStagePath = `/${api.deploymentStage.stageName}`;
-
-    const apiOrigin = new HttpOrigin(apiGatewayDomainName, {
-      originPath: apiGatewayStagePath,
-      protocolPolicy: OriginProtocolPolicy.HTTPS_ONLY,
-    });
-
-    const apiDistribution = new Distribution(this, "ApiDistribution", {
-      defaultBehavior: {
-        origin: apiOrigin,
-        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        allowedMethods: AllowedMethods.ALLOW_ALL,
-        cachePolicy: CachePolicy.CACHING_DISABLED,
-        originRequestPolicy: OriginRequestPolicy.CORS_CUSTOM_ORIGIN,
-      },
-      domainNames: [apiDomainName],
-      certificate: certificate,
-      priceClass: PriceClass.PRICE_CLASS_100,
-      comment: `CloudFront distribution for ${apiDomainName}`,
-    });
-
-    new ARecord(this, "ApiAliasRecord", {
-      zone: hostedZone,
-      recordName: apiDomainName,
-      target: RecordTarget.fromAlias(new CloudFrontTarget(apiDistribution)),
-    });
-
-    new CfnOutput(this, "ApiUrl", {
-      value: `https://${apiDomainName}/`,
-    });
-
-    const websiteBucket = new Bucket(this, "WebsiteBucket", {
-      publicReadAccess: false,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      websiteIndexDocument: "index.html",
-      websiteErrorDocument: "error.html",
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      encryption: BucketEncryption.S3_MANAGED,
-    });
-
-    const originAccessIdentity = new OriginAccessIdentity(this, "WebsiteOAI");
+    // Create origin access identity for S3
+    const originAccessIdentity = new OriginAccessIdentity(
+      this,
+      "OriginAccessIdentity"
+    );
     websiteBucket.grantRead(originAccessIdentity);
 
-    const websiteCertificate = new Certificate(this, "WebsiteCertificate", {
-      domainName: props.domainName,
-      subjectAlternativeNames: [`www.${props.domainName}`],
-      validation: CertificateValidation.fromDns(hostedZone),
-    });
-
+    // Create CloudFront distribution for website
     const websiteDistribution = new Distribution(this, "WebsiteDistribution", {
-      defaultRootObject: "index.html",
-      domainNames: [props.domainName, `www.${props.domainName}`],
-      certificate: websiteCertificate,
+      certificate: certificate,
+      domainNames: [rootDomain, `www.${rootDomain}`],
       defaultBehavior: {
         origin: new S3Origin(websiteBucket, { originAccessIdentity }),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         cachePolicy: CachePolicy.CACHING_OPTIMIZED,
       },
-      priceClass: PriceClass.PRICE_CLASS_100,
-      comment: `CloudFront distribution for ${props.domainName} website`,
     });
 
-    new ARecord(this, "WebsiteAliasRecord", {
+    // Create custom domain for API Gateway (regional endpoint)
+    const apiDomain = new DomainName(this, "ApiDomain", {
+      domainName: apiDomainName,
+      certificate: certificate,
+      endpointType: EndpointType.REGIONAL,
+    });
+
+    // Map the API to the custom domain
+    apiDomain.addBasePathMapping(api);
+
+    // Create DNS records for website
+    new ARecord(this, "RootDomainARecord", {
       zone: hostedZone,
-      recordName: props.domainName,
+      recordName: rootDomain,
       target: RecordTarget.fromAlias(new CloudFrontTarget(websiteDistribution)),
     });
-    new ARecord(this, "WwwWebsiteAliasRecord", {
+
+    new ARecord(this, "WwwARecord", {
       zone: hostedZone,
-      recordName: `www.${props.domainName}`,
+      recordName: `www.${rootDomain}`,
       target: RecordTarget.fromAlias(new CloudFrontTarget(websiteDistribution)),
     });
 
-    new BucketDeployment(this, "DeployWebsite", {
-      sources: [Source.asset(path.join(__dirname, "../../public"))],
-      destinationBucket: websiteBucket,
-      distribution: websiteDistribution,
-      distributionPaths: ["/*"],
-    });
-
-    new CfnOutput(this, "WebsiteUrl", {
-      value: `https://${props.domainName}`,
-    });
-
-    new CfnOutput(this, "WebsiteBucketName", {
-      value: websiteBucket.bucketName,
-    });
-    new CfnOutput(this, "WebsiteDistributionId", {
-      value: websiteDistribution.distributionId,
+    // Create DNS record for API
+    new ARecord(this, "ApiARecord", {
+      zone: hostedZone,
+      recordName: apiDomainName,
+      target: RecordTarget.fromAlias(new ApiGatewayDomain(apiDomain)),
     });
   }
 }

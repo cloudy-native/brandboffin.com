@@ -1,21 +1,21 @@
+import axios from "axios";
 import {
   BatchDomainCheckRequest,
   BatchDomainCheckResponse,
-  DomainCheckRequest,
-  DomainCheckResponse,
-  DomainSuggestion,
-  GetDomainSuggestionsRequest,
-  GetDomainSuggestionsResponse,
-  GetTLDPricesRequest,
-  GetTLDPricesResponse,
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
+  DomainCheckResponse,
+  DomainSuggestion,
+  GetDomainSuggestionsResponse,
+  GetTLDPricesResponse,
 } from "../../common/types";
 
 // Re-export types for external use
 export type {
   BatchDomainCheckRequest,
   BatchDomainCheckResponse,
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse,
   DomainCheckRequest,
   DomainCheckResponse,
   DomainCheckResult,
@@ -23,18 +23,37 @@ export type {
   GetDomainSuggestionsResponse,
   GetTLDPricesRequest,
   GetTLDPricesResponse,
-  BrandNameSuggestionRequest,
-  BrandNameSuggestionResponse,
   TLDPrice,
 } from "../../common/types";
 
+interface EndpointSpec {
+  url: string;
+  method: string;
+}
+
 const API_DOMAIN = "api.brandboffin.com";
 const BASE_URL = `https://${API_DOMAIN}`;
-const CHECK_DOMAIN_API_URL = `${BASE_URL}/check-domain`;
-const SUGGEST_BRAND_NAMES_API_URL = `${BASE_URL}/suggest-brand-names`;
-const CHECK_BATCH_DOMAINS_API_URL = `${BASE_URL}/check-batch-domains`;
-const SUGGEST_DOMAINS_API_URL = `${BASE_URL}/suggest-domains`;
-const LIST_TLDS_API_URL = `${BASE_URL}/tlds`;
+
+const BRANDS_ENDPOINT: EndpointSpec = {
+  url: `${BASE_URL}/brands`,
+  method: "POST",
+};
+const CHECK_DOMAIN_ENDPOINT: EndpointSpec = {
+  url: `${BASE_URL}/domains`,
+  method: "GET",
+};
+const CHECK_BATCH_DOMAINS_ENDPOINT: EndpointSpec = {
+  url: `${BASE_URL}/domains/batch-check`,
+  method: "POST",
+};
+const SUGGEST_DOMAINS_ENDPOINT: EndpointSpec = {
+  url: `${BASE_URL}/domains/suggestions`,
+  method: "GET",
+};
+const LIST_TLDS_ENDPOINT: EndpointSpec = {
+  url: `${BASE_URL}/tlds`,
+  method: "GET",
+};
 
 /**
  * Checks the availability of a domain name by calling a specified API endpoint.
@@ -45,47 +64,28 @@ const LIST_TLDS_API_URL = `${BASE_URL}/tlds`;
 export const checkDomainAvailability = async (
   domainName: string
 ): Promise<DomainCheckResponse> => {
+  const { url, method } = CHECK_DOMAIN_ENDPOINT;
+  
   try {
-    const response = await fetch(CHECK_DOMAIN_API_URL, {
-      method: "POST",
+    const response = await axios({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ domainName } as DomainCheckRequest),
+      params: {
+        domainName,
+      },
     });
 
-    if (!response.ok) {
-      // Attempt to parse error response from the API, otherwise use status text
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        // Assuming the error response might have a 'message' field
-        errorMessage += `: ${errorData.message || response.statusText}`;
-      } catch (e) {
-        // If parsing the error JSON fails, append the original status text
-        errorMessage += `: ${response.statusText || "Failed to retrieve error details"}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    // Ensure the response is valid JSON before parsing
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(
-        `Expected JSON response from API, but received ${contentType || "unknown content type"}`
-      );
-    }
-
-    const data: DomainCheckResponse = await response.json();
+    const data: DomainCheckResponse = response.data;
     console.log("CheckDomainAvailability response:", data);
     return data;
   } catch (error) {
     console.error("Error checking domain availability:", error);
-    // Ensure the error thrown is an instance of Error for consistent error handling
-    if (error instanceof Error) {
-      throw new Error(`Failed to check domain availability: ${error.message}`);
+    if (axios.isAxiosError(error)) {
+      throw new Error(`Failed to check domain availability for this top-level domain`);
     }
-    // Fallback for cases where a non-Error object might be thrown
     throw new Error(
       "An unknown error occurred while checking domain availability."
     );
@@ -102,39 +102,24 @@ export const suggestBrandNames = async (
   requestPayload: BrandNameSuggestionRequest
 ): Promise<BrandNameSuggestionResponse> => {
   try {
-    const response = await fetch(SUGGEST_BRAND_NAMES_API_URL, {
-      method: "POST",
+    const { url, method } = BRANDS_ENDPOINT;
+    const response = await axios({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestPayload),
+      data: requestPayload,
     });
 
-    if (!response.ok) {
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage += `: ${errorData.message || response.statusText}`;
-      } catch (e) {
-        errorMessage += `: ${response.statusText || "Failed to retrieve error details"}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(
-        `Expected JSON response from API, but received ${contentType || "unknown content type"}`
-      );
-    }
-
-    const data: BrandNameSuggestionResponse = await response.json();
+    const data: BrandNameSuggestionResponse = response.data;
     console.log("GenerateBrandNames response:", data);
     return data;
   } catch (error) {
     console.error("Error generating brand names:", error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to generate brand names: ${error.message}`);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Failed to generate brand names: ${message}`);
     }
     throw new Error("An unknown error occurred while generating brand names.");
   }
@@ -149,40 +134,26 @@ export const suggestBrandNames = async (
 export const checkBatchDomains = async (
   domains: string[]
 ): Promise<BatchDomainCheckResponse> => {
+  const { url, method } = CHECK_BATCH_DOMAINS_ENDPOINT;
   const requestPayload: BatchDomainCheckRequest = { domains };
+
   try {
-    const response = await fetch(CHECK_BATCH_DOMAINS_API_URL, {
-      method: "POST",
+    const response = await axios({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestPayload),
+      data: requestPayload,
     });
 
-    if (!response.ok) {
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage += `: ${errorData.message || response.statusText}`;
-      } catch (e) {
-        errorMessage += `: ${response.statusText || "Failed to retrieve error details"}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(
-        `Expected JSON response from API, but received ${contentType || "unknown content type"}`
-      );
-    }
-
-    const data: BatchDomainCheckResponse = await response.json();
+    const data: BatchDomainCheckResponse = response.data;
     return data;
   } catch (error) {
     console.error("Error checking batch domains:", error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to check batch domains: ${error.message}`);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Failed to check batch domains: ${message}`);
     }
     throw new Error("An unknown error occurred while checking batch domains.");
   }
@@ -201,40 +172,30 @@ export const getDomainSuggestions = async (
   onlyAvailable: boolean = true,
   suggestionCount: number = 50
 ): Promise<GetDomainSuggestionsResponse> => {
-  console.log("Fetching domain suggestions for", query, onlyAvailable, suggestionCount);
-  const requestPayload: GetDomainSuggestionsRequest = {
-    domainName: query,
+  const { url, method } = SUGGEST_DOMAINS_ENDPOINT;
+
+  console.log(
+    "Fetching domain suggestions for",
+    query,
     onlyAvailable,
-    suggestionCount,
-  };
+    suggestionCount
+  );
+  
   try {
-    const response = await fetch(SUGGEST_DOMAINS_API_URL, {
-      method: "POST",
+    const response = await axios({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestPayload),
+      params: {
+        domainName: query,
+        onlyAvailable,
+        suggestionCount,
+      },
     });
 
-    if (!response.ok) {
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage += `: ${errorData.message || response.statusText}`;
-      } catch (e) {
-        errorMessage += `: ${response.statusText || "Failed to retrieve error details"}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(
-        `Expected JSON response from API, but received ${contentType || "unknown content type"}`
-      );
-    }
-
-    const rawData = (await response.json()) as any; // Parse as any to handle potential mismatch
+    const rawData = response.data as any; // Parse as any to handle potential mismatch
     console.log("Raw GetDomainSuggestions response from API:", rawData);
 
     // Manually map to the expected GetDomainSuggestionsResponse structure
@@ -252,8 +213,9 @@ export const getDomainSuggestions = async (
     return mappedData;
   } catch (error) {
     console.error("Error getting domain suggestions:", error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to get domain suggestions: ${error.message}`);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Failed to get domain suggestions: ${message}`);
     }
     throw new Error(
       "An unknown error occurred while getting domain suggestions."
@@ -268,40 +230,26 @@ export const getDomainSuggestions = async (
  * @throws An error if the API request fails or the response cannot be parsed.
  */
 export const listTlds = async (tld?: string): Promise<GetTLDPricesResponse> => {
+  const { url, method } = LIST_TLDS_ENDPOINT;
+  
   try {
-    const response = await fetch(LIST_TLDS_API_URL, {
-      method: "POST",
+    const response = await axios({
+      url,
+      method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ tld } as GetTLDPricesRequest),
+      params: tld ? { tld } : {},
     });
 
-    if (!response.ok) {
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage += `: ${errorData.message || response.statusText}`;
-      } catch (e) {
-        errorMessage += `: ${response.statusText || "Failed to retrieve error details"}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error(
-        `Expected JSON response from API, but received ${contentType || "unknown content type"}`
-      );
-    }
-
-    const data: GetTLDPricesResponse = await response.json();
+    const data: GetTLDPricesResponse = response.data;
     console.log("Data:", data);
     return data;
   } catch (error) {
     console.error("Error listing TLDs:", error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to list TLDs: ${error.message}`);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Failed to list TLDs: ${message}`);
     }
     throw new Error("An unknown error occurred while listing TLDs.");
   }

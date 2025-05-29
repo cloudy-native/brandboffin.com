@@ -19,7 +19,8 @@ import type {
 } from "../utils/api";
 
 export interface AlternativeSuggestionsDisplayProps {
-  suggestionsData: GetDomainSuggestionsResponse | null | undefined;
+  suggestions: ApiDomainSuggestion[] | undefined;
+  domainName?: string; // Original domain name for context, if needed
   onSuggestionClick?: (domainName: string) => void;
 }
 
@@ -30,7 +31,7 @@ interface GroupedByTldAndAvailability {
 
 export const AlternativeSuggestionsDisplay: React.FC<
   AlternativeSuggestionsDisplayProps
-> = ({ suggestionsData, onSuggestionClick }) => {
+> = ({ suggestions, domainName, onSuggestionClick }) => {
   const groupSuggestionsByTld = React.useCallback(
     (
       suggestions: ApiDomainSuggestion[] = []
@@ -68,15 +69,11 @@ export const AlternativeSuggestionsDisplay: React.FC<
   );
 
   const processedSuggestions = React.useMemo(() => {
-    const suggestionsToList = suggestionsData?.suggestions || [];
+    const suggestionsToList = suggestions || [];
     return groupSuggestionsByTld(suggestionsToList);
-  }, [suggestionsData, groupSuggestionsByTld]);
+  }, [suggestions, groupSuggestionsByTld]);
 
-  if (
-    suggestionsData &&
-    suggestionsData.suggestions &&
-    suggestionsData.suggestions.length > 0
-  ) {
+  if (suggestions && suggestions.length > 0) {
     if (Object.keys(processedSuggestions).length > 0) {
       return (
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4} mt={3}>
@@ -205,11 +202,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
         </Box>
       );
     }
-  } else if (
-    suggestionsData &&
-    suggestionsData.suggestions &&
-    suggestionsData.suggestions.length === 0
-  ) {
+  } else if (suggestions && suggestions.length === 0) {
     return (
       <Text
         fontSize="sm"

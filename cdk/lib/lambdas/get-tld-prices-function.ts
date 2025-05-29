@@ -1,6 +1,6 @@
-import { AWSDomainUtils } from "./aws-domain-utils";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./lambda-utils";
-import { GetTLDPricesRequest, GetTLDPricesResponse } from "../../common/types";
+import { AWSDomainUtils } from "./utils/aws-domain-utils";
+import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
+import { GetTLDPricesRequest, GetTLDPricesResponse } from "../../../common/types";
 
 const awsDomainUtils = new AWSDomainUtils();
 
@@ -8,10 +8,10 @@ const getTLDPricesLogic: CoreLambdaLogic<
   GetTLDPricesRequest,
   GetTLDPricesResponse
 > = async (payload) => {
-  const tld = payload.body?.tld as string | undefined;
+  const tld = payload.queryStringParameters?.tld;
 
-  console.log(`Fetching TLD prices via POST. Filter TLD: ${tld || "all"}`);
-  console.log("Request body:", payload.body);
+  console.log(`Fetching TLD prices via GET. Filter TLD: ${tld || "all"}`);
+  console.log("Query parameters:", payload.queryStringParameters);
 
   try {
     const prices = await awsDomainUtils.getTLDPrices(tld);
@@ -35,6 +35,6 @@ export const handler = createApiHandler<
   GetTLDPricesRequest,
   GetTLDPricesResponse
 >(getTLDPricesLogic, {
-  allowedMethods: ["POST"],
-  isBodyRequired: true,
+  allowedMethods: ["GET"],
+  isBodyRequired: false,
 });
