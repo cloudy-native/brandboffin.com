@@ -10,24 +10,27 @@ import {
   bgShade,
   borderShade,
   headingShade,
-  primaryDark,
-  primaryLight,
+  primaryColorScheme as defaultColorScheme,
+  getThemedColorLight,
+  getThemedColorDark,
 } from "../theme/design";
 
 interface SectionProps {
   title: string;
   children: React.ReactNode;
+  colorScheme?: string;
 }
 
-const Section: React.FC<SectionProps> = ({ title, children }) => {
+const Section: React.FC<SectionProps> = ({ title, children, colorScheme: propColorScheme }) => {
+  const activeColorScheme = propColorScheme || defaultColorScheme;
   const topBar = useColorModeValue(
-    primaryLight(borderShade),
-    primaryDark(borderShade)
+    getThemedColorLight(activeColorScheme, borderShade),
+    getThemedColorDark(activeColorScheme, borderShade)
   );
-  const bg = useColorModeValue(primaryLight(bgShade), primaryDark(bgShade));
+  const bg = useColorModeValue(getThemedColorLight(activeColorScheme, bgShade), getThemedColorDark(activeColorScheme, bgShade));
   const titleColor = useColorModeValue(
-    primaryLight(headingShade),
-    primaryDark(headingShade)
+    getThemedColorLight(activeColorScheme, headingShade),
+    getThemedColorDark(activeColorScheme, headingShade)
   );
 
   return (

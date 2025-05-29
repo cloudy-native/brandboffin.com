@@ -1,5 +1,7 @@
-export const primaryColorScheme = "blue";
-export const secondaryColorScheme = "green";
+export const primaryColorScheme = "primary";
+export const secondaryColorScheme = "secondary";
+export const accentColorScheme = "accent";
+export const backgroundScheme = "background";
 
 export interface Shade {
   light: string;
@@ -41,18 +43,10 @@ export const headerFooterBackgroundShade: Shade = {
   dark: "900",
 };
 
-export function primaryLight(shade: Shade) {
-  return `${primaryColorScheme}.${shade.light}`;
+export function getThemedColorLight(colorScheme: string, shade: Shade): string {
+  return `${colorScheme}.${shade.light}`;
 }
 
-export function primaryDark(shade: Shade) {
-  return `${primaryColorScheme}.${shade.dark}`;
-}
-
-export function secondaryLight(shade: Shade) {
-  return `${secondaryColorScheme}.${shade.light}`;
-}
-
-export function secondaryDark(shade: Shade) {
-  return `${secondaryColorScheme}.${shade.dark}`;
+export function getThemedColorDark(colorScheme: string, shade: Shade): string {
+  return `${colorScheme}.${shade.dark}`;
 }

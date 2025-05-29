@@ -16,8 +16,7 @@
     "clean": "gatsby clean",
     "typecheck": "tsc --noEmit",
     "theme": "chakra-cli tokens src/theme/index.ts",
-    "theme:watch": "chakra-cli tokens src/theme/index.ts --watch",
-    "deploy": "aws s3 sync public/ s3://brandboffinstack-websitebucket75c24d94-u9dt3wbap5vc --delete"
+    "theme:watch": "chakra-cli tokens src/theme/index.ts --watch"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.816.0",

@@ -16,8 +16,9 @@ import {
   borderShade,
   headerFooterBackgroundShade,
   headingShade,
-  primaryDark,
-  primaryLight,
+  primaryColorScheme,
+  getThemedColorLight,
+  getThemedColorDark,
 } from "../theme/design";
 
 interface NavItem {
@@ -37,16 +38,16 @@ const Header = () => {
   const { colorMode, toggleColorMode } = useColorMode();
 
   const bgColor = useColorModeValue(
-    primaryLight(headerFooterBackgroundShade),
-    primaryDark(headerFooterBackgroundShade)
+    getThemedColorLight(primaryColorScheme, headerFooterBackgroundShade),
+    getThemedColorDark(primaryColorScheme, headerFooterBackgroundShade)
   );
   const textColor = useColorModeValue(
-    primaryLight(headingShade),
-    primaryDark(headingShade)
+    getThemedColorLight(primaryColorScheme, headingShade),
+    getThemedColorDark(primaryColorScheme, headingShade)
   );
   const borderColor = useColorModeValue(
-    primaryLight(borderShade),
-    primaryDark(borderShade)
+    getThemedColorLight(primaryColorScheme, borderShade),
+    getThemedColorDark(primaryColorScheme, borderShade)
   );
 
   return (

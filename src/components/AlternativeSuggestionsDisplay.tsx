@@ -1,8 +1,5 @@
 import {
   Box,
-  Card, // Added Card
-  CardBody, // Added CardBody
-  CardHeader, // Added CardHeader
   Heading,
   List,
   ListItem,
@@ -12,7 +9,12 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import React from "react";
-import { bgShade, secondaryDark, secondaryLight } from "../theme/design";
+import {
+  bgShade,
+  secondaryColorScheme as defaultColorScheme,
+  getThemedColorLight,
+  getThemedColorDark,
+} from "../theme/design";
 import type {
   DomainSuggestion as ApiDomainSuggestion,
   GetDomainSuggestionsResponse,
@@ -22,6 +24,7 @@ export interface AlternativeSuggestionsDisplayProps {
   suggestions: ApiDomainSuggestion[] | undefined;
   domainName?: string; // Original domain name for context, if needed
   onSuggestionClick?: (domainName: string) => void;
+  colorScheme?: string; // Add colorScheme prop
 }
 
 interface GroupedByTldAndAvailability {
@@ -31,7 +34,13 @@ interface GroupedByTldAndAvailability {
 
 export const AlternativeSuggestionsDisplay: React.FC<
   AlternativeSuggestionsDisplayProps
-> = ({ suggestions, domainName, onSuggestionClick }) => {
+> = ({
+  suggestions,
+  domainName,
+  onSuggestionClick,
+  colorScheme: propColorScheme,
+}) => {
+  const activeColorScheme = propColorScheme || defaultColorScheme;
   const groupSuggestionsByTld = React.useCallback(
     (
       suggestions: ApiDomainSuggestion[] = []
@@ -86,104 +95,113 @@ export const AlternativeSuggestionsDisplay: React.FC<
               return totalB - totalA; // Sort descending
             })
             .map(([tld, domainGroups]) => (
-              <Card key={tld} variant="outline">
-                <CardHeader pb={2}>
-                  <Heading
-                    size="sm"
-                    textTransform="uppercase"
-                    letterSpacing="wide"
-                    color={useColorModeValue("gray.600", "gray.300")}
-                  >
-                    {tld}
-                  </Heading>
-                </CardHeader>
-                <CardBody pt={0}>
-                  <VStack spacing={3} align="stretch">
-                    {domainGroups.available.length > 0 && (
-                      <Box>
-                        <Heading
-                          size="xs"
-                          color={useColorModeValue("green.600", "green.300")}
-                          mb={1.5}
-                        >
-                          Available
-                        </Heading>
-                        <List spacing={1} fontSize="sm">
-                          {domainGroups.available.map((sugg, idx) => (
-                            <ListItem
-                              key={`available-${tld}-${idx}`}
-                              py={1}
-                              px={2}
-                              onClick={
-                                onSuggestionClick && sugg.domainName
-                                  ? () => onSuggestionClick(sugg.domainName!)
-                                  : undefined
-                              }
-                              cursor={onSuggestionClick ? "pointer" : "default"}
-                              _hover={
-                                onSuggestionClick
-                                  ? {
-                                      bg: useColorModeValue(
-                                        "gray.100",
-                                        "gray.700"
-                                      ),
-                                    }
-                                  : {}
-                              }
-                              borderRadius="md"
+              <Box
+                key={tld}
+                p={3}
+                borderWidth="1px"
+                borderRadius="lg"
+                boxShadow="md"
+                bg={useColorModeValue(
+                  getThemedColorLight(activeColorScheme, bgShade),
+                  getThemedColorDark(activeColorScheme, bgShade)
+                )}
+                display="flex" // Added for consistency
+                flexDirection="column" // Added for consistency
+              >
+                <Heading
+                  size="sm"
+                  textTransform="uppercase"
+                  letterSpacing="wide"
+                  color={useColorModeValue("gray.600", "gray.300")}
+                  mb={2} // To maintain spacing
+                >
+                  {tld}
+                </Heading>
+                <VStack spacing={3} align="stretch">
+                  {domainGroups.available.length > 0 && (
+                    <Box>
+                      <Heading
+                        size="xs"
+                        color={useColorModeValue("green.600", "green.300")}
+                        mb={1.5}
+                      >
+                        Available
+                      </Heading>
+                      <List spacing={1} fontSize="sm">
+                        {domainGroups.available.map((sugg, idx) => (
+                          <ListItem
+                            key={`available-${tld}-${idx}`}
+                            py={1}
+                            px={2}
+                            onClick={
+                              onSuggestionClick && sugg.domainName
+                                ? () => onSuggestionClick(sugg.domainName!)
+                                : undefined
+                            }
+                            cursor={onSuggestionClick ? "pointer" : "default"}
+                            _hover={
+                              onSuggestionClick
+                                ? {
+                                    bg: useColorModeValue(
+                                      "gray.100",
+                                      "gray.700"
+                                    ),
+                                  }
+                                : {}
+                            }
+                            borderRadius="md"
+                          >
+                            <Text>{sugg.domainName}</Text>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                  {domainGroups.unavailable.length > 0 && (
+                    <Box>
+                      <Heading
+                        size="xs"
+                        color={useColorModeValue("red.600", "red.300")}
+                        mb={1.5}
+                      >
+                        Not Available
+                      </Heading>
+                      <List spacing={1} fontSize="sm">
+                        {domainGroups.unavailable.map((sugg, idx) => (
+                          <ListItem
+                            key={`unavailable-${tld}-${idx}`}
+                            py={1}
+                            px={2}
+                            onClick={
+                              onSuggestionClick && sugg.domainName
+                                ? () => onSuggestionClick(sugg.domainName!)
+                                : undefined
+                            }
+                            cursor={onSuggestionClick ? "pointer" : "default"}
+                            _hover={
+                              onSuggestionClick
+                                ? {
+                                    bg: useColorModeValue(
+                                      "gray.100",
+                                      "gray.700"
+                                    ),
+                                  }
+                                : {}
+                            }
+                            borderRadius="md"
+                          >
+                            <Text
+                              color={useColorModeValue("gray.600", "gray.400")}
                             >
-                              <Text>{sugg.domainName}</Text>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Box>
-                    )}
-                    {domainGroups.unavailable.length > 0 && (
-                      <Box>
-                        <Heading
-                          size="xs"
-                          color={useColorModeValue("red.600", "red.300")}
-                          mb={1.5}
-                        >
-                          Not Available
-                        </Heading>
-                        <List spacing={1} fontSize="sm">
-                          {domainGroups.unavailable.map((sugg, idx) => (
-                            <ListItem
-                              key={`unavailable-${tld}-${idx}`}
-                              py={1}
-                              px={2}
-                              onClick={
-                                onSuggestionClick && sugg.domainName
-                                  ? () => onSuggestionClick(sugg.domainName!)
-                                  : undefined
-                              }
-                              cursor={onSuggestionClick ? "pointer" : "default"}
-                              _hover={
-                                onSuggestionClick
-                                  ? {
-                                      bg: useColorModeValue(
-                                        "gray.100",
-                                        "gray.700"
-                                      ),
-                                    }
-                                  : {}
-                              }
-                              borderRadius="md"
-                            >
-                              <Text
-                                color={useColorModeValue("gray.600", "gray.400")}
-                              >
-                                {sugg.domainName}
-                              </Text>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Box>
-                    )}
-                  </VStack>
-                </CardBody>
-              </Card>
+                              {sugg.domainName}
+                            </Text>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </VStack>
+              </Box>
             ))}
         </SimpleGrid>
       );
@@ -194,7 +212,10 @@ export const AlternativeSuggestionsDisplay: React.FC<
           borderWidth="1px"
           borderRadius="md"
           shadow="sm"
-          bg={useColorModeValue("white", "gray.700")}
+          bg={useColorModeValue(
+            getThemedColorLight(activeColorScheme, bgShade),
+            getThemedColorDark(activeColorScheme, bgShade)
+          )}
         >
           <Text fontSize="sm" color={useColorModeValue("gray.500", "gray.400")}>
             No alternative suggestions to display.

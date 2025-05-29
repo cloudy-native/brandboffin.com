@@ -1,5 +1,6 @@
 import { HeadFC, PageProps } from "gatsby";
 import * as React from "react";
+import { primaryColorScheme, secondaryColorScheme } from "../theme/design";
 import {
   HomePageHero,
   DomainAvailability,
@@ -13,7 +14,7 @@ const IndexPage: React.FC<PageProps> = () => {
       <HomePageHero />
       <DomainAvailability />
       <BrandNameGeneratorSection />
-    </> 
+    </>
   );
 };
 

@@ -68,28 +68,41 @@ function constructClaudePrompt(
   defaultCount: number
 ): string {
   const {
-    prompt,
+    prompt, // This is the "description"
     industry,
     style,
     keywords,
     length,
     count = defaultCount,
   } = request;
-  let fullPrompt = `Generate ${count} unique brand name and tagline pairs based on the following criteria:\n- Core idea/prompt: ${prompt}\n`;
+
+  // Start with a clear instruction about the desired output (brand names AND taglines)
+  let fullPrompt = `Your goal is to generate ${count} unique and creative brand name and tagline pairs.\n\nConsider the following criteria carefully:\n- Core Idea/Description: ${prompt}\n`;
+
   if (industry) fullPrompt += `- Industry: ${industry}\n`;
-  if (style) fullPrompt += `- Style: ${style}\n`;
-  if (keywords && keywords.length > 0)
-    fullPrompt += `- Keywords: ${keywords.join(", ")}\n`;
-  if (length) fullPrompt += `- Desired brand name length (approx characters): ${length}\n`;
-  fullPrompt += `\nPlease provide the response as a list of brand name and tagline pairs. Each pair should be formatted exactly as follows, with 'Brand Name:' and 'Tagline:' on separate lines, followed by a blank line before the next pair:
+  if (style) fullPrompt += `- Desired Style/Vibe: ${style}\n`; // Slightly rephrased for clarity
+  if (keywords && keywords.length > 0) {
+    fullPrompt += `- Key Themes/Keywords to incorporate or allude to: ${keywords.join(", ")}\n`; // Clarify role of keywords
+  }
+  if (length) {
+    fullPrompt += `- Target Brand Name Length: Approximately ${length} characters. Shorter is often better if it's impactful.\n`; // Added a small hint
+  }
+
+  fullPrompt += `
+For each of the ${count} suggestions:
+1.  **Brand Name:** Should be memorable, distinct, easy to spell, and easy to pronounce. It should be relevant to the core idea and style. If an industry is provided, aim for names that are differentiated from common existing brands in that industry.
+2.  **Tagline:** Should be concise (ideally 3-7 words), compelling, and capture the brand's essence or unique selling proposition. It must complement the brand name.
+
+Output Format:
+Provide the response as a list of brand name and tagline pairs. Each pair MUST be formatted exactly as follows, with 'Brand Name:' and 'Tagline:' on separate lines, followed by a blank line before the next pair. Do not include any numbering, introductory/concluding text, or any other explanations.
 
 Brand Name: [The Brand Name]
 Tagline: [The Tagline]
 
 Brand Name: [Another Brand Name]
 Tagline: [Another Tagline]
+`; // Reinforced output format and added detail for name/tagline quality
 
-Do not include any other text, numbering, or introductory phrases.`;
   return fullPrompt;
 }
 
@@ -114,7 +127,7 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
 
   const client = await initializeAnthropicClient();
   const systemPromptContent =
-    "You are an expert brand strategist. Your task is to generate creative and relevant brand names and compelling taglines based on user input. Follow the user's specified output format precisely.";
+    "You are 'BrandSpark', a world-class AI branding assistant. Your expertise lies in crafting unique brand names and impactful taglines. You are highly creative, pay close attention to user requirements, and strictly adhere to the requested output format.";
   const userPromptContent = constructClaudePrompt(requestBody, requestedCount);
 
   console.log("Constructed user prompt for Claude:", userPromptContent);

@@ -9,22 +9,27 @@ import React from "react";
 import {
   bgShade,
   headingShade,
-  primaryDark,
-  primaryLight,
   textShade,
+  primaryColorScheme,
+  getThemedColorLight, // Import new helper
+  getThemedColorDark, // Import new helper
 } from "../../theme/design";
 
-interface HomePageHeroProps {}
+interface HomePageHeroProps {
+}
 
 export const HomePageHero: React.FC<HomePageHeroProps> = () => {
-  const heroBg = useColorModeValue(primaryLight(bgShade), primaryDark(bgShade));
+  const heroBg = useColorModeValue(
+    getThemedColorLight(primaryColorScheme, bgShade),
+    getThemedColorDark(primaryColorScheme, bgShade)
+  );
   const heroHeadingColor = useColorModeValue(
-    primaryLight(headingShade),
-    primaryDark(headingShade)
+    getThemedColorLight(primaryColorScheme, headingShade),
+    getThemedColorDark(primaryColorScheme, headingShade)
   );
   const textColor = useColorModeValue(
-    primaryLight(textShade),
-    primaryDark(textShade)
+    getThemedColorLight(primaryColorScheme, textShade),
+    getThemedColorDark(primaryColorScheme, textShade)
   );
 
   return (
