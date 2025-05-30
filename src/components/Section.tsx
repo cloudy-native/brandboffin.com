@@ -6,39 +6,23 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import React from "react";
-import {
-  bgShade,
-  borderShade,
-  headingShade,
-  primaryColorScheme as defaultColorScheme,
-  getThemedColorLight,
-  getThemedColorDark,
-} from "../theme/design";
+import { accentShade, headingShade } from "../theme/design";
 
 interface SectionProps {
   title: string;
   children: React.ReactNode;
-  colorScheme?: string;
 }
 
-const Section: React.FC<SectionProps> = ({ title, children, colorScheme: propColorScheme }) => {
-  const activeColorScheme = propColorScheme || defaultColorScheme;
-  const topBar = useColorModeValue(
-    getThemedColorLight(activeColorScheme, borderShade),
-    getThemedColorDark(activeColorScheme, borderShade)
-  );
-  const bg = useColorModeValue(getThemedColorLight(activeColorScheme, bgShade), getThemedColorDark(activeColorScheme, bgShade));
-  const titleColor = useColorModeValue(
-    getThemedColorLight(activeColorScheme, headingShade),
-    getThemedColorDark(activeColorScheme, headingShade)
-  );
+const Section: React.FC<SectionProps> = ({ title, children }) => {
+  const topBar = useColorModeValue(accentShade.light, accentShade.dark);
+  const headingColor= useColorModeValue(headingShade.light, headingShade.dark);
 
   return (
-    <Box pb={10} bg={bg}>
-      <Box h="2px" bg={topBar} w="full" />
+    <Box pb={10}>
+      <Box h="4px" w="full" bg={topBar} />
       <Container maxW="4xl" pt={10}>
         <VStack spacing={4} align="stretch">
-          <Heading as="h2" size="xl" textAlign="center" color={titleColor}>
+          <Heading as="h2" size="xl" textAlign="center" color={headingColor}>
             {title}
           </Heading>
           {children}

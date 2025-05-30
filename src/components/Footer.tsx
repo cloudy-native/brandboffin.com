@@ -9,38 +9,17 @@ import {
 } from "@chakra-ui/react";
 import { Link as GatsbyLink } from "gatsby";
 import React from "react";
-import {
-  borderShade,
-  headerFooterBackgroundShade,
-  headingShade,
-  primaryColorScheme,
-  getThemedColorLight,
-  getThemedColorDark,
-} from "../theme/design";
+import { headerFooterBackgroundShade } from "../theme/design";
 import BuyMeCoffeeButton from "./BuyMeCoffeeButton";
 
 const Footer = () => {
-  const bgColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headerFooterBackgroundShade),
-    getThemedColorDark(primaryColorScheme, headerFooterBackgroundShade)
-  );
-  const borderColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, borderShade),
-    getThemedColorDark(primaryColorScheme, borderShade)
-  );
-  const textColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headingShade),
-    getThemedColorDark(primaryColorScheme, headingShade)
+  const backgroundColor = useColorModeValue(
+    headerFooterBackgroundShade.light,
+    headerFooterBackgroundShade.dark
   );
 
   return (
-    <Box
-      as="footer"
-      bg={bgColor}
-      color={textColor}
-      borderTop="1px"
-      borderColor={borderColor}
-    >
+    <Box as="footer" borderTop="1px" bg={backgroundColor}>
       <Container as={Stack} maxW={"container.xl"} py={10}>
         <SimpleGrid
           templateColumns={{ sm: "1fr 1fr", md: "2fr 1fr 1fr 2fr" }}
@@ -54,7 +33,6 @@ const Footer = () => {
                 fontFamily={"heading"}
                 fontWeight="bold"
                 fontSize="xl"
-                color={textColor}
               >
                 Brand Boffin
               </Text>
@@ -74,7 +52,7 @@ const Footer = () => {
         </SimpleGrid>
       </Container>
 
-      <Divider borderColor={borderColor} />
+      <Divider />
 
       <Box py={4}>
         <Text pt={2} fontSize={"sm"} textAlign={"center"}>

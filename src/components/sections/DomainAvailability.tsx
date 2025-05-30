@@ -1,5 +1,4 @@
 import { CheckCircleIcon, SmallCloseIcon } from "@chakra-ui/icons";
-import { useColorModeValue } from "@chakra-ui/react";
 import {
   Alert,
   AlertIcon,
@@ -16,11 +15,12 @@ import {
   Switch, // Added Switch
   Tag,
   Text,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import React, { useEffect, useRef, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import validator from "validator";
-import { getThemedColorLight, getThemedColorDark, textShade, primaryColorScheme } from "../../theme/design";
+import { borderShade, primaryColorScheme } from "../../theme/design";
 import {
   checkDomainAvailability,
   type DomainCheckResponse,
@@ -30,8 +30,7 @@ import {
 import AlternativeSuggestionsDisplay from "../AlternativeSuggestionsDisplay";
 import Section from "../Section";
 
-interface DomainAvailabilityProps {
-}
+interface DomainAvailabilityProps {}
 
 const sanitizeDomainInput = (input: string): string => {
   if (typeof input !== "string") return "";
@@ -58,10 +57,6 @@ interface SuggestionsState {
 }
 
 export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
-  const spinnerColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, textShade),
-    getThemedColorDark(primaryColorScheme, textShade)
-  );
   const [inputValue, setInputValue] = useState<string>("");
   const [domainSearchState, setDomainSearchState] = useState<DomainSearchState>(
     {
@@ -281,13 +276,16 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
     reFetchSuggestionsOnToggle();
   }, [suggestionsState.onlyAvailable, suggestionsState.currentDomain]);
 
+  const borderColor = useColorModeValue(borderShade.light, borderShade.dark);
+  
   return (
-    <Section title="I Want a Good Domain Name" colorScheme={primaryColorScheme}>
+    <Section title="I Want a Good Domain Name">
       <Stack spacing={4}>
         <FormControl id="domain-search">
           <FormLabel srOnly>Domain Name</FormLabel>
           <HStack>
             <Input
+            borderColor={borderColor}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -305,10 +303,10 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
               onChange={handleInputChange}
             />
             <Button
+              colorScheme={primaryColorScheme}
               isDisabled={
                 !validator.isFQDN(inputValue) || domainSearchState.loading
               }
-              colorScheme={primaryColorScheme}
               type="submit"
               onClick={handleSubmit}
               isLoading={
@@ -387,7 +385,6 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
                       onlyAvailable: e.target.checked,
                     }))
                   }
-                  colorScheme={primaryColorScheme}
                   size="md"
                 />
               </FormControl>
@@ -400,7 +397,6 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
                     thickness="4px"
                     speed="0.65s"
                     emptyColor="gray.200"
-                    color={spinnerColor}
                     size="lg"
                   />
                   <Text mt={2}>Looking things up...</Text>

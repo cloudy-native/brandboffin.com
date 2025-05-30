@@ -1,46 +1,21 @@
-import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Container, Heading, Text, useColorModeValue } from "@chakra-ui/react";
 import React from "react";
-import {
-  bgShade,
-  headingShade,
-  textShade,
-  primaryColorScheme,
-  getThemedColorLight, // Import new helper
-  getThemedColorDark, // Import new helper
-} from "../../theme/design";
+import { headingShade } from "../../theme/design";
 
-interface HomePageHeroProps {
-}
+interface HomePageHeroProps {}
 
 export const HomePageHero: React.FC<HomePageHeroProps> = () => {
-  const heroBg = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, bgShade),
-    getThemedColorDark(primaryColorScheme, bgShade)
-  );
-  const heroHeadingColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headingShade),
-    getThemedColorDark(primaryColorScheme, headingShade)
-  );
-  const textColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, textShade),
-    getThemedColorDark(primaryColorScheme, textShade)
-  );
+  const headingColor= useColorModeValue(headingShade.light, headingShade.dark);
 
   return (
-    <Box bg={heroBg} py={{ base: 4, md: 8 }}>
+    <Box py={{ base: 4, md: 8 }}>
       <Container maxW="3xl" textAlign="center">
         <Heading
           as="h1"
           size={{ base: "2xl", md: "3xl" }}
           fontWeight="bold"
-          color={heroHeadingColor}
           mb={4}
+          color={headingColor}
         >
           Brainstorm Your Perfect Brand Name
         </Heading>
@@ -48,12 +23,12 @@ export const HomePageHero: React.FC<HomePageHeroProps> = () => {
           as="h2"
           size={{ base: "md", md: "lg" }}
           fontWeight="bold"
-          color={heroHeadingColor}
           mb={4}
+          color={headingColor}
         >
           And a domain name to go with it!
         </Heading>
-        <Text fontSize={{ base: "lg", md: "xl" }} color={textColor} mb={8}>
+        <Text fontSize={{ base: "lg", md: "xl" }} mb={8} color={headingColor}>
           Get instant domain availability checks, brand name suggestions, and
           top-level domain options. Your next big idea starts here.
         </Text>
@@ -61,4 +36,3 @@ export const HomePageHero: React.FC<HomePageHeroProps> = () => {
     </Box>
   );
 };
-

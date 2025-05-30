@@ -9,22 +9,13 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import React from "react";
-import {
-  bgShade,
-  secondaryColorScheme as defaultColorScheme,
-  getThemedColorLight,
-  getThemedColorDark,
-} from "../theme/design";
-import type {
-  DomainSuggestion as ApiDomainSuggestion,
-  GetDomainSuggestionsResponse,
-} from "../utils/api";
+import { cardBackgroundShade, headingShade, textShade } from "../theme/design";
+import type { DomainSuggestion as ApiDomainSuggestion } from "../utils/api";
 
 export interface AlternativeSuggestionsDisplayProps {
   suggestions: ApiDomainSuggestion[] | undefined;
   domainName?: string; // Original domain name for context, if needed
   onSuggestionClick?: (domainName: string) => void;
-  colorScheme?: string; // Add colorScheme prop
 }
 
 interface GroupedByTldAndAvailability {
@@ -34,13 +25,7 @@ interface GroupedByTldAndAvailability {
 
 export const AlternativeSuggestionsDisplay: React.FC<
   AlternativeSuggestionsDisplayProps
-> = ({
-  suggestions,
-  domainName,
-  onSuggestionClick,
-  colorScheme: propColorScheme,
-}) => {
-  const activeColorScheme = propColorScheme || defaultColorScheme;
+> = ({ suggestions, domainName, onSuggestionClick }) => {
   const groupSuggestionsByTld = React.useCallback(
     (
       suggestions: ApiDomainSuggestion[] = []
@@ -77,6 +62,10 @@ export const AlternativeSuggestionsDisplay: React.FC<
     []
   );
 
+  const cardBgColor = useColorModeValue(cardBackgroundShade.light, cardBackgroundShade.dark);
+  const headingColor = useColorModeValue(headingShade.light, headingShade.dark);
+  const textColor = useColorModeValue(textShade.light, textShade.dark);
+
   const processedSuggestions = React.useMemo(() => {
     const suggestionsToList = suggestions || [];
     return groupSuggestionsByTld(suggestionsToList);
@@ -101,10 +90,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                 borderWidth="1px"
                 borderRadius="lg"
                 boxShadow="md"
-                bg={useColorModeValue(
-                  getThemedColorLight(activeColorScheme, bgShade),
-                  getThemedColorDark(activeColorScheme, bgShade)
-                )}
+                bg={cardBgColor}
                 display="flex" // Added for consistency
                 flexDirection="column" // Added for consistency
               >
@@ -112,7 +98,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                   size="sm"
                   textTransform="uppercase"
                   letterSpacing="wide"
-                  color={useColorModeValue("gray.600", "gray.300")}
+                  color={headingColor}
                   mb={2} // To maintain spacing
                 >
                   {tld}
@@ -122,7 +108,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                     <Box>
                       <Heading
                         size="xs"
-                        color={useColorModeValue("green.600", "green.300")}
+                        color={headingColor}
                         mb={1.5}
                       >
                         Available
@@ -151,7 +137,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                             }
                             borderRadius="md"
                           >
-                            <Text>{sugg.domainName}</Text>
+                            <Text color={textColor}>{sugg.domainName}</Text>
                           </ListItem>
                         ))}
                       </List>
@@ -161,7 +147,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                     <Box>
                       <Heading
                         size="xs"
-                        color={useColorModeValue("red.600", "red.300")}
+                        color={headingColor}
                         mb={1.5}
                       >
                         Not Available
@@ -191,7 +177,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                             borderRadius="md"
                           >
                             <Text
-                              color={useColorModeValue("gray.600", "gray.400")}
+                              color={textColor}
                             >
                               {sugg.domainName}
                             </Text>
@@ -212,12 +198,9 @@ export const AlternativeSuggestionsDisplay: React.FC<
           borderWidth="1px"
           borderRadius="md"
           shadow="sm"
-          bg={useColorModeValue(
-            getThemedColorLight(activeColorScheme, bgShade),
-            getThemedColorDark(activeColorScheme, bgShade)
-          )}
+          bg={cardBgColor}
         >
-          <Text fontSize="sm" color={useColorModeValue("gray.500", "gray.400")}>
+          <Text fontSize="sm" color={textColor}>
             No alternative suggestions to display.
           </Text>
         </Box>
@@ -227,7 +210,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
     return (
       <Text
         fontSize="sm"
-        color={useColorModeValue("gray.500", "gray.400")}
+        color={textColor}
         mt={3}
       >
         No alternative suggestions found.

@@ -1,11 +1,9 @@
 import { HeadFC, PageProps } from "gatsby";
 import * as React from "react";
-import { primaryColorScheme, secondaryColorScheme } from "../theme/design";
 import {
-  HomePageHero,
-  DomainAvailability,
-  TLDPricing,
   BrandNameGeneratorSection,
+  DomainAvailability,
+  HomePageHero,
 } from "../components/sections/";
 
 const IndexPage: React.FC<PageProps> = () => {

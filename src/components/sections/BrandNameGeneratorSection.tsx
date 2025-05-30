@@ -36,11 +36,13 @@ import type {
 } from "../../../common/types";
 import { AlternativeSuggestionsDisplay } from "../../components/AlternativeSuggestionsDisplay";
 import {
-  getThemedColorDark,
-  getThemedColorLight,
+  backgroundShade,
+  cardBackgroundShade,
   headingShade,
   primaryColorScheme,
   textShade,
+  accentShade,
+  borderShade,
 } from "../../theme/design";
 import {
   checkDomainAvailability,
@@ -51,21 +53,18 @@ import {
 import { formatDomainFromBrand } from "../../utils/domainFormatter";
 import Section from "../Section";
 
-// Interface for the status of each brand's domain check
 export interface BrandDomainStatus {
-  id: string; // Unique ID for stable updates and keys
+  id: string;
   name: string;
-  tagline: string; // Ensure tagline is part of the status
-  domain: string; // e.g., brandname.com
+  tagline: string;
+  domain: string;
   isChecking: boolean;
   isAvailable?: boolean;
   error?: string | null;
-  // New fields for inline alternatives
   alternativeSuggestions?: GetDomainSuggestionsResponse["suggestions"];
   showAlternatives?: boolean;
   isFetchingAlternatives?: boolean;
   alternativesError?: string | null;
-  // showAlternatives and isFetchingAlternatives will be removed from here as they move to modal state
 }
 
 interface BrandNameGeneratorSectionProps {}
@@ -73,10 +72,7 @@ interface BrandNameGeneratorSectionProps {}
 export const BrandNameGeneratorSection: React.FC<
   BrandNameGeneratorSectionProps
 > = () => {
-  const spinnerColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, textShade),
-    getThemedColorDark(primaryColorScheme, textShade)
-  );
+  const spinnerColor = useColorModeValue(accentShade.light, accentShade.dark);
   const [brandPrompt, setBrandPrompt] = React.useState<string>("");
   const [brandDomainStatuses, setBrandDomainStatuses] = React.useState<
     BrandDomainStatus[] | null
@@ -88,9 +84,8 @@ export const BrandNameGeneratorSection: React.FC<
   );
   const isEffectChecking = React.useRef<boolean>(false);
 
-  // State for the alternatives modal
   interface AlternativesModalData {
-    brandDomain: string; // The domain for which alternatives are shown
+    brandDomain: string;
     suggestions: DomainSuggestion[] | null;
     isLoading: boolean;
     error: string | null;
@@ -107,8 +102,6 @@ export const BrandNameGeneratorSection: React.FC<
     console.log(`Fetching alternative suggestions for domain: "${baseName}"`);
 
     try {
-      // Keeping onlyAvailable: false for now to see if query format was the issue
-      // Pass the full baseName (e.g., "My Brand.com") to the API
       return await getDomainSuggestions(baseName, onlyAvailable);
     } catch (error: any) {
       console.error(`Error fetching alternative suggestions: ${error.message}`);
@@ -154,8 +147,8 @@ export const BrandNameGeneratorSection: React.FC<
   const [style, setStyle] = React.useState<string>("");
   const [keywords, setKeywords] = React.useState<string>("");
 
-  const [length, setLength] = React.useState<string>("10"); // Approx characters
-  const [count, setCount] = React.useState<string>("10"); // Number of suggestions
+  const [length, setLength] = React.useState<string>("10");
+  const [count, setCount] = React.useState<string>("10");
 
   const handleGenerateBrandNamesSubmit = async () => {
     if (!brandPrompt.trim()) {
@@ -195,9 +188,9 @@ export const BrandNameGeneratorSection: React.FC<
           (suggestion, index) => ({
             id: `${index}`,
             name: suggestion.name,
-            tagline: suggestion.tagline, // Map tagline from suggestion
+            tagline: suggestion.tagline,
             domain: formatDomainFromBrand(suggestion.name),
-            isChecking: true, // Will be checked by useEffect
+            isChecking: true,
           })
         );
         setBrandDomainStatuses(initialStatuses);
@@ -218,10 +211,8 @@ export const BrandNameGeneratorSection: React.FC<
     }
   };
 
-  // Effect to check domain availability for each generated brand name
   React.useEffect(() => {
     if (isEffectChecking.current) {
-      // console.log("[EFFECT_LOCK] Domain checking effect is already running. Skipping.");
       return;
     }
 
@@ -231,7 +222,6 @@ export const BrandNameGeneratorSection: React.FC<
       const checkDomainAsync = async () => {
         isEffectChecking.current = true; // Set lock
         try {
-          // console.log(`[EFFECT_LOCK] Checking domain in useEffect: ${brandToCheck.domain}`);
           const domainCheck = await checkDomainAvailability(
             brandToCheck.domain
           );
@@ -241,7 +231,7 @@ export const BrandNameGeneratorSection: React.FC<
                   b.id === brandToCheck.id
                     ? {
                         ...b,
-                        isChecking: false, // Mark this one as done
+                        isChecking: false,
                         isAvailable: domainCheck.result.available,
                         error: domainCheck.result.error || null,
                       }
@@ -250,7 +240,6 @@ export const BrandNameGeneratorSection: React.FC<
               : null
           );
         } catch (error: any) {
-          // console.error(`[EFFECT_LOCK] Error checking domain in useEffect ${brandToCheck.domain}:`, error);
           setBrandDomainStatuses((prevStatuses) =>
             prevStatuses
               ? prevStatuses.map((b) =>
@@ -274,28 +263,32 @@ export const BrandNameGeneratorSection: React.FC<
     }
   }, [brandDomainStatuses]);
 
-  const brandIdeasHeadingColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headingShade),
-    getThemedColorDark(primaryColorScheme, headingShade)
+  const headingColor = useColorModeValue(headingShade.light, headingShade.dark);
+
+  const textColor = useColorModeValue(textShade.light, textShade.dark);
+
+  const cardBgColor = useColorModeValue(
+    cardBackgroundShade.light,
+    cardBackgroundShade.dark
   );
-  const brandButtonTextColor = useColorModeValue("white", "gray.800");
+
+  const modalBgColor = useColorModeValue(
+    backgroundShade.light,
+    backgroundShade.dark
+  );
+
+  const borderColor = useColorModeValue(borderShade.light, borderShade.dark);
 
   return (
-    <Section
-      title="I Want an Excellent Brand Identity"
-      colorScheme={primaryColorScheme}
-    >
+    <Section title="I Want an Excellent Brand Identity">
       <Box>
         <VStack spacing={4} align="stretch">
           <FormControl id="brand-prompt">
-            <FormLabel
-              fontWeight="bold"
-              fontSize="lg"
-              color={brandIdeasHeadingColor}
-            >
+            <FormLabel fontWeight="bold" fontSize="lg" color={headingColor}>
               Describe your business or idea:
             </FormLabel>
             <Textarea
+              borderColor={borderColor}
               value={brandPrompt}
               onChange={(e) => setBrandPrompt(e.target.value)}
               placeholder="e.g., A subscription service for eco-friendly pet toys"
@@ -307,6 +300,7 @@ export const BrandNameGeneratorSection: React.FC<
             <FormControl id="industry">
               <FormLabel>Industry (Optional)</FormLabel>
               <Input
+                borderColor={borderColor}
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
                 placeholder="e.g., Technology, Food, Fashion"
@@ -315,6 +309,7 @@ export const BrandNameGeneratorSection: React.FC<
             <FormControl id="style">
               <FormLabel>Style (Optional)</FormLabel>
               <Input
+                borderColor={borderColor}
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
                 placeholder="e.g., Modern, Playful, Elegant"
@@ -324,6 +319,7 @@ export const BrandNameGeneratorSection: React.FC<
           <FormControl id="keywords">
             <FormLabel>Keywords (Optional, comma-separated)</FormLabel>
             <Input
+              borderColor={borderColor}
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               placeholder="e.g., sustainable, innovative, global"
@@ -333,6 +329,7 @@ export const BrandNameGeneratorSection: React.FC<
             <FormControl id="length">
               <FormLabel>Approx. Length (Optional)</FormLabel>
               <NumberInput
+                borderColor={borderColor}
                 value={length}
                 onChange={(valueString) => setLength(valueString)}
                 min={3}
@@ -348,6 +345,7 @@ export const BrandNameGeneratorSection: React.FC<
             <FormControl id="count">
               <FormLabel>Number of Suggestions (Optional)</FormLabel>
               <NumberInput
+                borderColor={borderColor}
                 value={count}
                 onChange={(valueString) => setCount(valueString)}
                 min={1}
@@ -373,7 +371,7 @@ export const BrandNameGeneratorSection: React.FC<
         {brandNamesLoading && (
           <Box textAlign="center" mt={8}>
             <Spinner size="xl" color={spinnerColor} thickness="4px" />
-            <Text mt={2} fontSize="lg" fontWeight="medium">
+            <Text color={textColor} mt={2} fontSize="lg" fontWeight="medium">
               Generating amazing brand names for you...
             </Text>
           </Box>
@@ -386,10 +384,10 @@ export const BrandNameGeneratorSection: React.FC<
         )}
         {brandDomainStatuses && brandDomainStatuses.length > 0 && (
           <Box mt={10}>
-            <Heading as="h3" size="lg" color={brandIdeasHeadingColor} pb={2}>
+            <Heading as="h3" size="lg" color={headingColor} pb={2}>
               Brand Name Ideas
             </Heading>
-            <Text fontSize="sm" color="gray.500" mb={6}>
+            <Text fontSize="sm" color={textColor} mb={6}>
               <Icon as={CheckCircleIcon} color="green.500" mr={1} /> Available
               <Icon as={SmallCloseIcon} color="red.500" mx={1} /> Unavailable
             </Text>
@@ -401,7 +399,7 @@ export const BrandNameGeneratorSection: React.FC<
                   borderWidth="1px"
                   borderRadius="lg"
                   boxShadow="md"
-                  bg={useColorModeValue("white", "gray.700")}
+                  bg={cardBgColor}
                   display="flex"
                   flexDirection="column"
                 >
@@ -416,13 +414,14 @@ export const BrandNameGeneratorSection: React.FC<
                         size="md"
                         noOfLines={2}
                         title={brand.name}
+                        color={headingColor}
                       >
                         {brand.name}
                       </Heading>
                       {brand.tagline && (
                         <Text
                           fontSize="sm"
-                          color={useColorModeValue("gray.600", "gray.400")}
+                          color={textColor}
                           fontStyle="italic"
                           noOfLines={2}
                           title={brand.tagline}
@@ -451,7 +450,12 @@ export const BrandNameGeneratorSection: React.FC<
                         ) : (
                           <Box boxSize={5} />
                         )}
-                        <Text fontFamily="monospace" fontSize="sm" ml={2}>
+                        <Text
+                          color={textColor}
+                          fontFamily="monospace"
+                          fontSize="sm"
+                          ml={2}
+                        >
                           {brand.domain}
                         </Text>
                       </HStack>
@@ -483,7 +487,7 @@ export const BrandNameGeneratorSection: React.FC<
         {brandDomainStatuses &&
           brandDomainStatuses.length === 0 &&
           !brandNamesLoading && (
-            <Text mt={6} fontSize="md" color="gray.600" textAlign="center">
+            <Text color={textColor} mt={6} fontSize="md" textAlign="center">
               No brand name suggestions were generated for your prompt. Try
               being more specific or rephrasing.
             </Text>
@@ -494,12 +498,12 @@ export const BrandNameGeneratorSection: React.FC<
         <Modal
           isOpen={isAlternativesModalOpen}
           onClose={() => setIsAlternativesModalOpen(false)}
-          size="xl"
+          size="4xl"
           scrollBehavior="inside"
         >
           <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>
+          <ModalContent bg={modalBgColor}>
+            <ModalHeader color={headingColor}>
               Alternative Domains for "{alternativesModalData.brandDomain}"
             </ModalHeader>
             <ModalCloseButton />
@@ -507,7 +511,9 @@ export const BrandNameGeneratorSection: React.FC<
               {alternativesModalData.isLoading && (
                 <HStack justifyContent="center" my={4}>
                   <Spinner size="xl" color={spinnerColor} />
-                  <Text ml={3}>Loading suggestions...</Text>
+                  <Text color={textColor} ml={3}>
+                    Loading suggestions...
+                  </Text>
                 </HStack>
               )}
               {alternativesModalData.error && (
@@ -521,15 +527,14 @@ export const BrandNameGeneratorSection: React.FC<
                 !alternativesModalData.isLoading && (
                   <AlternativeSuggestionsDisplay
                     suggestions={alternativesModalData.suggestions}
-                    domainName={alternativesModalData.brandDomain} // Pass for context if needed by the display component
-                    colorScheme={primaryColorScheme}
+                    domainName={alternativesModalData.brandDomain}
                   />
                 )}
               {alternativesModalData.suggestions &&
                 alternativesModalData.suggestions.length === 0 &&
                 !alternativesModalData.isLoading &&
                 !alternativesModalData.error && (
-                  <Text textAlign="center" my={4}>
+                  <Text color={textColor} textAlign="center" my={4}>
                     No alternative suggestions found for "
                     {alternativesModalData.brandDomain}".
                   </Text>

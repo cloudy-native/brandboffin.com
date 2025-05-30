@@ -12,14 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { Link as GatsbyLink } from "gatsby";
 import React from "react";
-import {
-  borderShade,
-  headerFooterBackgroundShade,
-  headingShade,
-  primaryColorScheme,
-  getThemedColorLight,
-  getThemedColorDark,
-} from "../theme/design";
+import { headerFooterBackgroundShade, textShade } from "../theme/design";
 
 interface NavItem {
   label: string;
@@ -36,19 +29,11 @@ const NAV_ITEMS: NavItem[] = [
 
 const Header = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-
-  const bgColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headerFooterBackgroundShade),
-    getThemedColorDark(primaryColorScheme, headerFooterBackgroundShade)
+  const backgroundColor = useColorModeValue(
+    headerFooterBackgroundShade.light,
+    headerFooterBackgroundShade.dark
   );
-  const textColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, headingShade),
-    getThemedColorDark(primaryColorScheme, headingShade)
-  );
-  const borderColor = useColorModeValue(
-    getThemedColorLight(primaryColorScheme, borderShade),
-    getThemedColorDark(primaryColorScheme, borderShade)
-  );
+  const textColor = useColorModeValue(textShade.light, textShade.dark);
 
   return (
     <Box
@@ -56,12 +41,10 @@ const Header = () => {
       position="sticky"
       top={0}
       zIndex={10}
-      bg={bgColor}
-      color={textColor}
       borderBottom="1px"
-      borderColor={borderColor}
       boxShadow="sm"
       backdropFilter="none"
+      bg={backgroundColor}
     >
       <Container maxW="container.xl" px={4}>
         <Flex
@@ -108,6 +91,7 @@ const Header = () => {
               variant="ghost"
               icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
               onClick={toggleColorMode}
+              color={textColor}
             />
           </Stack>
         </Flex>

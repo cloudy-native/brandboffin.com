@@ -8,45 +8,26 @@ export interface Shade {
   dark: string;
 }
 
-export const bgShade: Shade = {
-  light: "50",
-  dark: "900",
-};
-
-export const panelBgShade: Shade = {
-  light: "50",
-  dark: "900",
-};
-
-export const uiShade: Shade = {
-  light: "50",
-  dark: "900",
-};
-
-export const headingShade: Shade = {
-  light: "800",
-  dark: "200",
-};
-
-export const textShade: Shade = {
-  light: "700",
-  dark: "100",
-};
-
-export const borderShade: Shade = {
-  light: "200",
-  dark: "800",
-};
-
-export const headerFooterBackgroundShade: Shade = {
-  light: "100",
-  dark: "900",
-};
-
-export function getThemedColorLight(colorScheme: string, shade: Shade): string {
-  return `${colorScheme}.${shade.light}`;
+export function shadesFor(
+  colorScheme: string,
+  light: string,
+  dark: string
+): Shade {
+  return {
+    light: `${colorScheme}.${light}`,
+    dark: `${colorScheme}.${dark}`,
+  };
 }
 
-export function getThemedColorDark(colorScheme: string, shade: Shade): string {
-  return `${colorScheme}.${shade.dark}`;
-}
+export const backgroundShade: Shade = shadesFor(backgroundScheme, "100", "900");
+export const cardBackgroundShade: Shade = shadesFor(secondaryColorScheme, "50", "800");
+export const headingShade: Shade = shadesFor(primaryColorScheme, "900", "50");
+export const textShade: Shade = shadesFor(primaryColorScheme, "800", "100");
+export const borderShade: Shade = shadesFor(backgroundScheme, "300", "800");
+export const accentShade: Shade = shadesFor(accentColorScheme, "500", "500");
+
+export const headerFooterBackgroundShade: Shade = shadesFor(
+  backgroundScheme,
+  "400",
+  "800"
+);
