@@ -27,11 +27,13 @@ import { BlockPublicAccess, Bucket } from "aws-cdk-lib/aws-s3";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Statement } from "cdk-iam-floyd";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { createLambdaFunction } from "./lambdas/utils/lambda-utils";
 
 const CLAUDE_SECRET_NAME = process.env.CLAUDE_SECRET_NAME || "claude-api";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20240620";
+const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-sonnet-20240229-v1:0";
 
 export interface BrandBoffinStackProps extends StackProps {
   domainName: string;
@@ -62,9 +64,33 @@ export class BrandBoffinStack extends Stack {
         },
       }
     );
-
+    
     claudeSecret.grantRead(brandNameSuggesterFunction);
 
+    const bedrockBrandNameSuggesterFunction = createLambdaFunction(
+      this,
+      "brands-bedrock-function",
+      {
+        entry: "lib/lambdas/brands-bedrock-function.ts",
+        memorySize: 1024, // Increased memory
+        nodeModules: ["@aws-sdk/client-bedrock-runtime"],
+        environment: {
+          BEDROCK_MODEL_ID,
+          BEDROCK_TEMPERATURE: process.env.BEDROCK_TEMPERATURE || "0.7",
+          BEDROCK_MAX_TOKENS: process.env.BEDROCK_MAX_TOKENS || "2000",
+        },
+      }
+    );
+
+    bedrockBrandNameSuggesterFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:${this.region}::foundation-model/${BEDROCK_MODEL_ID}`,
+        ],
+      })
+    );
+    
     const checkOneDomainFunction = createLambdaFunction(
       this,
       "domains-function",
@@ -117,25 +143,8 @@ export class BrandBoffinStack extends Stack {
       new Statement.Route53domains().allow().toListPrices()
     );
 
-    // Create API Gateway
-    const api = new LambdaRestApi(this, "BrandBoffinApi", {
-      handler: brandNameSuggesterFunction, // Default handler
-      proxy: false,
-      defaultCorsPreflightOptions: {
-        allowOrigins: Cors.ALL_ORIGINS,
-        allowMethods: Cors.ALL_METHODS,
-        allowHeaders: [
-          "Content-Type",
-          "X-Amz-Date",
-          "Authorization",
-          "X-Api-Key",
-          "X-Amz-Security-Token",
-        ],
-      },
-    });
-
-    // Define CORS options for all resources
-    const defaultCorsPreflightOptions: CorsOptions = {
+     // Define CORS options for all resources
+     const defaultCorsPreflightOptions: CorsOptions = {
       allowOrigins: Cors.ALL_ORIGINS,
       allowMethods: Cors.ALL_METHODS,
       allowHeaders: [
@@ -147,11 +156,25 @@ export class BrandBoffinStack extends Stack {
       ],
     };
 
+
+    // Create API Gateway
+    const api = new LambdaRestApi(this, "BrandBoffinApi", {
+      handler: brandNameSuggesterFunction, // Default handler
+      proxy: false,
+      defaultCorsPreflightOptions
+    });
+
+   
     // Add API routes
     const brands = api.root.addResource("brands", {
       defaultCorsPreflightOptions,
     });
     brands.addMethod("POST", new LambdaIntegration(brandNameSuggesterFunction));
+
+    const bedrockBrands = api.root.addResource("brands-bedrock", {
+      defaultCorsPreflightOptions,
+    });
+    bedrockBrands.addMethod("POST", new LambdaIntegration(bedrockBrandNameSuggesterFunction));
 
     const domains = api.root.addResource("domains", {
       defaultCorsPreflightOptions,
@@ -194,7 +217,7 @@ export class BrandBoffinStack extends Stack {
       destinationBucket: websiteBucket,
     });
 
-    const rootDomain = domainName.split(".").slice(-2).join("."); 
+    const rootDomain = domainName.split(".").slice(-2).join(".");
     const hostedZone = HostedZone.fromLookup(this, "HostedZone", {
       domainName: rootDomain,
     });
