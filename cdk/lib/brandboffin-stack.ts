@@ -67,30 +67,6 @@ export class BrandBoffinStack extends Stack {
     
     claudeSecret.grantRead(brandNameSuggesterFunction);
 
-    const bedrockBrandNameSuggesterFunction = createLambdaFunction(
-      this,
-      "brands-bedrock-function",
-      {
-        entry: "lib/lambdas/brands-bedrock-function.ts",
-        memorySize: 1024, // Increased memory
-        nodeModules: ["@aws-sdk/client-bedrock-runtime"],
-        environment: {
-          BEDROCK_MODEL_ID,
-          BEDROCK_TEMPERATURE: process.env.BEDROCK_TEMPERATURE || "0.7",
-          BEDROCK_MAX_TOKENS: process.env.BEDROCK_MAX_TOKENS || "2000",
-        },
-      }
-    );
-
-    bedrockBrandNameSuggesterFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["bedrock:InvokeModel"],
-        resources: [
-          `arn:aws:bedrock:${this.region}::foundation-model/${BEDROCK_MODEL_ID}`,
-        ],
-      })
-    );
-    
     const checkOneDomainFunction = createLambdaFunction(
       this,
       "domains-function",
@@ -101,19 +77,6 @@ export class BrandBoffinStack extends Stack {
     );
 
     checkOneDomainFunction.addToRolePolicy(
-      new Statement.Route53domains().allow().toCheckDomainAvailability()
-    );
-
-    const checkBatchDomainsFunction = createLambdaFunction(
-      this,
-      "batch-domains-function",
-      {
-        entry: "lib/lambdas/batch-domains-function.ts",
-        nodeModules: ["@aws-sdk/client-route-53-domains"],
-      }
-    );
-
-    checkBatchDomainsFunction.addToRolePolicy(
       new Statement.Route53domains().allow().toCheckDomainAvailability()
     );
 
@@ -171,23 +134,10 @@ export class BrandBoffinStack extends Stack {
     });
     brands.addMethod("POST", new LambdaIntegration(brandNameSuggesterFunction));
 
-    const bedrockBrands = api.root.addResource("brands-bedrock", {
-      defaultCorsPreflightOptions,
-    });
-    bedrockBrands.addMethod("POST", new LambdaIntegration(bedrockBrandNameSuggesterFunction));
-
     const domains = api.root.addResource("domains", {
       defaultCorsPreflightOptions,
     });
     domains.addMethod("GET", new LambdaIntegration(checkOneDomainFunction));
-
-    const batchCheck = domains.addResource("batch-check", {
-      defaultCorsPreflightOptions,
-    });
-    batchCheck.addMethod(
-      "POST",
-      new LambdaIntegration(checkBatchDomainsFunction)
-    );
 
     const suggestions = domains.addResource("suggestions", {
       defaultCorsPreflightOptions,

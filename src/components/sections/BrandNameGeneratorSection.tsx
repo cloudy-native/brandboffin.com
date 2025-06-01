@@ -1,15 +1,19 @@
-import { CheckCircleIcon, SmallCloseIcon } from "@chakra-ui/icons";
+import { CheckCircleIcon, InfoIcon, SmallCloseIcon } from "@chakra-ui/icons";
 import {
   Alert,
+  AlertDescription,
   AlertIcon,
+  AlertTitle,
   Box,
   Button,
   FormControl,
   FormLabel,
   Heading,
   HStack,
-  Icon,
   Input,
+  List,
+  ListIcon,
+  ListItem,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -24,31 +28,34 @@ import {
   NumberInputStepper,
   SimpleGrid,
   Spinner,
+  Tag,
   Text,
   Textarea,
   useColorModeValue,
+  useDisclosure,
   VStack,
 } from "@chakra-ui/react";
 import * as React from "react";
-import type {
-  DomainSuggestion,
-  GetDomainSuggestionsResponse,
-} from "../../../common/types";
-import { AlternativeSuggestionsDisplay } from "../../components/AlternativeSuggestionsDisplay";
+import type { DomainSuggestion as ApiDomainSuggestion } from "../../utils/api";
+import { AlternativeSuggestionsDisplay } from "../AlternativeSuggestionsDisplay";
+
 import {
+  accentShade,
   backgroundShade,
+  borderShade,
   cardBackgroundShade,
   headingShade,
   primaryColorScheme,
+  Shade,
   textShade,
-  accentShade,
-  borderShade,
 } from "../../theme/design";
 import {
   checkDomainAvailability,
   getDomainSuggestions,
   suggestBrandNames,
   type BrandNameSuggestionRequest,
+  type DomainCheckResponse,
+  type DomainCheckResult,
 } from "../../utils/api";
 import { formatDomainFromBrand } from "../../utils/domainFormatter";
 import Section from "../Section";
@@ -58,13 +65,10 @@ export interface BrandDomainStatus {
   name: string;
   tagline: string;
   domain: string;
-  isChecking: boolean;
-  isAvailable?: boolean;
-  error?: string | null;
-  alternativeSuggestions?: GetDomainSuggestionsResponse["suggestions"];
-  showAlternatives?: boolean;
-  isFetchingAlternatives?: boolean;
-  alternativesError?: string | null;
+  brandSuggestedDomains?: string[]; // Original list from AI
+  suggestedDomainAvailability?: DomainCheckResult[];
+  checkingSuggestedDomainsLoading?: boolean;
+  checkingSuggestedDomainsError?: string | null;
 }
 
 interface BrandNameGeneratorSectionProps {}
@@ -72,7 +76,6 @@ interface BrandNameGeneratorSectionProps {}
 export const BrandNameGeneratorSection: React.FC<
   BrandNameGeneratorSectionProps
 > = () => {
-  const spinnerColor = useColorModeValue(accentShade.light, accentShade.dark);
   const [brandPrompt, setBrandPrompt] = React.useState<string>("");
   const [brandDomainStatuses, setBrandDomainStatuses] = React.useState<
     BrandDomainStatus[] | null
@@ -82,73 +85,62 @@ export const BrandNameGeneratorSection: React.FC<
   const [brandNamesError, setBrandNamesError] = React.useState<string | null>(
     null
   );
-  const isEffectChecking = React.useRef<boolean>(false);
 
-  interface AlternativesModalData {
-    brandDomain: string;
-    suggestions: DomainSuggestion[] | null;
-    isLoading: boolean;
-    error: string | null;
-  }
-  const [isAlternativesModalOpen, setIsAlternativesModalOpen] =
-    React.useState<boolean>(false);
-  const [alternativesModalData, setAlternativesModalData] =
-    React.useState<AlternativesModalData | null>(null);
-
-  const fetchAlternativeSuggestionsApi = async (
-    baseName: string,
-    onlyAvailable: boolean = false
-  ): Promise<GetDomainSuggestionsResponse> => {
-    console.log(`Fetching alternative suggestions for domain: "${baseName}"`);
-
-    try {
-      return await getDomainSuggestions(baseName, onlyAvailable);
-    } catch (error: any) {
-      console.error(`Error fetching alternative suggestions: ${error.message}`);
-      throw new Error(
-        error.message || "Failed to fetch alternative domain suggestions."
-      );
-    }
-  };
-
-  const handleSuggestAlternativesClick = async (brandId: string) => {
-    const brandToFetchFor = brandDomainStatuses?.find((b) => b.id === brandId);
-    if (!brandToFetchFor) return;
-
-    setIsAlternativesModalOpen(true);
-    setAlternativesModalData({
-      brandDomain: brandToFetchFor.domain,
-      suggestions: null,
-      isLoading: true,
-      error: null,
-    });
-
-    try {
-      const data = await fetchAlternativeSuggestionsApi(
-        brandToFetchFor.domain,
-        true
-      );
-      setAlternativesModalData({
-        brandDomain: brandToFetchFor.domain,
-        suggestions: data.suggestions,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error: any) {
-      setAlternativesModalData({
-        brandDomain: brandToFetchFor.domain,
-        suggestions: null,
-        isLoading: false,
-        error: error.message || "Failed to fetch alternative suggestions.",
-      });
-    }
-  };
   const [industry, setIndustry] = React.useState<string>("");
   const [style, setStyle] = React.useState<string>("");
   const [keywords, setKeywords] = React.useState<string>("");
 
-  const [length, setLength] = React.useState<string>("10");
-  const [count, setCount] = React.useState<string>("10");
+  const [length, setLength] = React.useState<number>(10);
+  const [count, setCount] = React.useState<number>(10);
+
+  // State for Alternative Suggestions Modal
+  const {
+    isOpen: isAlternativesModalOpen,
+    onOpen: onOpenAlternativesModal,
+    onClose: onCloseAlternativesModal,
+  } = useDisclosure();
+  const [selectedDomainForAlternatives, setSelectedDomainForAlternatives] =
+    React.useState<string | null>(null);
+  const [alternativeSuggestions, setAlternativeSuggestions] = React.useState<
+    ApiDomainSuggestion[] | null
+  >(null);
+  const [alternativesLoading, setAlternativesLoading] =
+    React.useState<boolean>(false);
+  const [alternativesError, setAlternativesError] = React.useState<
+    string | null
+  >(null);
+
+  // Effect to fetch alternative suggestions when a domain is selected
+  React.useEffect(() => {
+    if (selectedDomainForAlternatives) {
+      const fetchAlternatives = async () => {
+        setAlternativesLoading(true);
+        setAlternativeSuggestions(null);
+        setAlternativesError(null);
+        try {
+          const response = await getDomainSuggestions(
+            selectedDomainForAlternatives,
+            true,
+            20
+          );
+          setAlternativeSuggestions(response.suggestions || []);
+        } catch (err) {
+          setAlternativesError(
+            err instanceof Error
+              ? err.message
+              : "Failed to load alternative suggestions."
+          );
+        }
+        setAlternativesLoading(false);
+      };
+      fetchAlternatives();
+    }
+  }, [selectedDomainForAlternatives]);
+
+  const handleDomainSuggestionClick = (domain: string) => {
+    setSelectedDomainForAlternatives(domain);
+    onOpenAlternativesModal();
+  };
 
   const handleGenerateBrandNamesSubmit = async () => {
     if (!brandPrompt.trim()) {
@@ -170,17 +162,13 @@ export const BrandNameGeneratorSection: React.FC<
           .map((k) => k.trim())
           .filter((k) => k !== "");
       }
-      const lengthNum = parseInt(length, 10);
-      if (!isNaN(lengthNum) && lengthNum > 0) requestBody.length = lengthNum;
-      const countNum = parseInt(count, 10);
-      // Use default of 5 if not specified or invalid, but still allow API default if empty
-      if (!isNaN(countNum) && countNum > 0) {
-        requestBody.count = countNum;
-      } else if (count.trim() === "" && !requestBody.count) {
-        // If user left it blank and we haven't set a default from elsewhere
-        // we can let the API decide or explicitly set a default here if desired.
-        // For now, let API decide if blank. If they input '0' or invalid, it won't be sent.
+      if (typeof length === "number" && !isNaN(length) && length > 0) {
+        requestBody.length = length;
       }
+      if (typeof count === "number" && !isNaN(count) && count > 0) {
+        requestBody.count = count;
+      }
+      // If count is NaN (e.g. empty input) or not positive, it won't be sent, allowing API default.
       const result = await suggestBrandNames(requestBody);
 
       if (result.suggestions && result.suggestions.length > 0) {
@@ -190,7 +178,11 @@ export const BrandNameGeneratorSection: React.FC<
             name: suggestion.name,
             tagline: suggestion.tagline,
             domain: formatDomainFromBrand(suggestion.name),
-            isChecking: true,
+            // Keep the original AI suggested domains, they might contain duplicates or be unfiltered
+            brandSuggestedDomains: suggestion.suggestedDomains || [],
+            suggestedDomainAvailability: [], // Initialize
+            checkingSuggestedDomainsLoading: false, // Initialize
+            checkingSuggestedDomainsError: null, // Initialize
           })
         );
         setBrandDomainStatuses(initialStatuses);
@@ -211,76 +203,179 @@ export const BrandNameGeneratorSection: React.FC<
     }
   };
 
-  React.useEffect(() => {
-    if (isEffectChecking.current) {
-      return;
+  function colorModeFor(shade: Shade) {
+    return useColorModeValue(shade.light, shade.dark);
+  }
+
+  const headingColor = colorModeFor(headingShade);
+  const textColor = colorModeFor(textShade);
+  const cardBgColor = colorModeFor(cardBackgroundShade);
+  const modalBgColor = colorModeFor(backgroundShade);
+  const borderColor = colorModeFor(borderShade);
+  const spinnerColor = colorModeFor(accentShade);
+
+  const handleCheckSuggestedDomains = async (brandId: string) => {
+    setBrandDomainStatuses((prevStatuses) => {
+      if (!prevStatuses) return null;
+      return prevStatuses.map((brand) =>
+        brand.id === brandId
+          ? {
+              ...brand,
+              checkingSuggestedDomainsLoading: true,
+              checkingSuggestedDomainsError: null,
+              suggestedDomainAvailability: [], // Clear previous results
+            }
+          : brand
+      );
+    });
+
+    const brandToCheck = brandDomainStatuses?.find((b) => b.id === brandId);
+
+    if (
+      brandToCheck &&
+      brandToCheck.brandSuggestedDomains &&
+      brandToCheck.brandSuggestedDomains.length > 0
+    ) {
+      const domainPromises = brandToCheck.brandSuggestedDomains.map((domain) =>
+        checkDomainAvailability(domain)
+          .then(
+            (response: DomainCheckResponse) =>
+              ({ status: "fulfilled", value: response.result, domain }) as const
+          )
+          .catch(
+            (error: any) =>
+              ({ status: "rejected", reason: error, domain }) as const
+          )
+      );
+
+      try {
+        const results = await Promise.all(domainPromises);
+
+        type SettledDomainResult =
+          | { status: "fulfilled"; value: DomainCheckResult; domain: string }
+          | { status: "rejected"; reason: any; domain: string };
+
+        const domainCheckResults: DomainCheckResult[] = results.map(
+          (result: SettledDomainResult) => {
+            if (result.status === "fulfilled") {
+              return result.value;
+            }
+            // For rejected promises, construct a DomainCheckResult with an error message
+            return {
+              domain: result.domain,
+              available: false, // Assume unavailable on error
+              error:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : "API error",
+            };
+          }
+        );
+
+        setBrandDomainStatuses((prevStatuses) => {
+          if (!prevStatuses) return null;
+          return prevStatuses.map((brand) =>
+            brand.id === brandId
+              ? {
+                  ...brand,
+                  suggestedDomainAvailability: domainCheckResults,
+                  checkingSuggestedDomainsLoading: false,
+                }
+              : brand
+          );
+        });
+      } catch (error) {
+        setBrandDomainStatuses((prevStatuses) => {
+          if (!prevStatuses) return null;
+          return prevStatuses.map((brand) =>
+            brand.id === brandId
+              ? {
+                  ...brand,
+                  checkingSuggestedDomainsLoading: false,
+                  checkingSuggestedDomainsError:
+                    error instanceof Error
+                      ? error.message
+                      : "An unexpected error occurred during parallel checks.",
+                }
+              : brand
+          );
+        });
+      }
+    } else {
+      setBrandDomainStatuses((prevStatuses) => {
+        if (!prevStatuses) return null;
+        return prevStatuses.map((brand) =>
+          brand.id === brandId
+            ? {
+                ...brand,
+                checkingSuggestedDomainsLoading: false,
+                checkingSuggestedDomainsError:
+                  "No domains to check or brand details are missing.",
+              }
+            : brand
+        );
+      });
     }
-
-    const brandToCheck = brandDomainStatuses?.find((b) => b.isChecking);
-
-    if (brandToCheck) {
-      const checkDomainAsync = async () => {
-        isEffectChecking.current = true; // Set lock
-        try {
-          const domainCheck = await checkDomainAvailability(
-            brandToCheck.domain
-          );
-          setBrandDomainStatuses((prevStatuses) =>
-            prevStatuses
-              ? prevStatuses.map((b) =>
-                  b.id === brandToCheck.id
-                    ? {
-                        ...b,
-                        isChecking: false,
-                        isAvailable: domainCheck.result.available,
-                        error: domainCheck.result.error || null,
-                      }
-                    : b
-                )
-              : null
-          );
-        } catch (error: any) {
-          setBrandDomainStatuses((prevStatuses) =>
-            prevStatuses
-              ? prevStatuses.map((b) =>
-                  b.id === brandToCheck.id
-                    ? {
-                        ...b,
-                        isChecking: false, // Mark this one as done, even on error
-                        error:
-                          error.message ||
-                          "Failed to check domain availability.",
-                      }
-                    : b
-                )
-              : null
-          );
-        } finally {
-          isEffectChecking.current = false; // Release lock
-        }
-      };
-      checkDomainAsync();
-    }
-  }, [brandDomainStatuses]);
-
-  const headingColor = useColorModeValue(headingShade.light, headingShade.dark);
-
-  const textColor = useColorModeValue(textShade.light, textShade.dark);
-
-  const cardBgColor = useColorModeValue(
-    cardBackgroundShade.light,
-    cardBackgroundShade.dark
-  );
-
-  const modalBgColor = useColorModeValue(
-    backgroundShade.light,
-    backgroundShade.dark
-  );
-
-  const borderColor = useColorModeValue(borderShade.light, borderShade.dark);
+  };
 
   return (
     <Section title="I Want an Excellent Brand Identity">
+      {/* Modal for Alternative Suggestions */}
+      {selectedDomainForAlternatives && (
+        <Modal
+          isOpen={isAlternativesModalOpen}
+          onClose={onCloseAlternativesModal}
+          size="4xl"
+        >
+          <ModalOverlay />
+          <ModalContent bg={modalBgColor}>
+            <ModalHeader>
+              Alternatives for "{selectedDomainForAlternatives}"
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              {alternativesLoading && (
+                <Box textAlign="center" py={10}>
+                  <Spinner size="xl" color={spinnerColor} />
+                  <Text mt={2}>Loading alternative suggestions...</Text>
+                </Box>
+              )}
+              {alternativesError && (
+                <Alert status="error">
+                  <AlertIcon />
+                  {alternativesError}
+                </Alert>
+              )}
+              {!alternativesLoading &&
+                !alternativesError &&
+                alternativeSuggestions && (
+                  <AlternativeSuggestionsDisplay
+                    suggestions={alternativeSuggestions}
+                    domainName={selectedDomainForAlternatives}
+                  />
+                )}
+              {!alternativesLoading &&
+                !alternativesError &&
+                (!alternativeSuggestions ||
+                  alternativeSuggestions.length === 0) && (
+                  <Text>
+                    No alternative suggestions found for "
+                    {selectedDomainForAlternatives}".
+                  </Text>
+                )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                colorScheme={primaryColorScheme}
+                onClick={onCloseAlternativesModal}
+              >
+                Close
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
+
       <Box>
         <VStack spacing={4} align="stretch">
           <FormControl id="brand-prompt">
@@ -331,7 +426,9 @@ export const BrandNameGeneratorSection: React.FC<
               <NumberInput
                 borderColor={borderColor}
                 value={length}
-                onChange={(valueString) => setLength(valueString)}
+                onChange={(_valueAsString, valueAsNumber) =>
+                  setLength(valueAsNumber)
+                }
                 min={3}
                 max={30}
               >
@@ -347,7 +444,9 @@ export const BrandNameGeneratorSection: React.FC<
               <NumberInput
                 borderColor={borderColor}
                 value={count}
-                onChange={(valueString) => setCount(valueString)}
+                onChange={(_valueAsString, valueAsNumber) =>
+                  setCount(valueAsNumber)
+                }
                 min={1}
                 max={20}
                 defaultValue={5} // Default to 5 suggestions
@@ -372,7 +471,7 @@ export const BrandNameGeneratorSection: React.FC<
           <Box textAlign="center" mt={8}>
             <Spinner size="xl" color={spinnerColor} thickness="4px" />
             <Text color={textColor} mt={2} fontSize="lg" fontWeight="medium">
-              Generating amazing brand names for you...
+              Generating amazing brand ideas for you...
             </Text>
           </Box>
         )}
@@ -385,12 +484,9 @@ export const BrandNameGeneratorSection: React.FC<
         {brandDomainStatuses && brandDomainStatuses.length > 0 && (
           <Box mt={10}>
             <Heading as="h3" size="lg" color={headingColor} pb={2}>
-              Brand Name Ideas
+              Brand Name Ideas and Domain Suggestions
             </Heading>
-            <Text fontSize="sm" color={textColor} mb={6}>
-              <Icon as={CheckCircleIcon} color="green.500" mr={1} /> Available
-              <Icon as={SmallCloseIcon} color="red.500" mx={1} /> Unavailable
-            </Text>
+
             <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={4}>
               {brandDomainStatuses.map((brand) => (
                 <Box
@@ -418,66 +514,158 @@ export const BrandNameGeneratorSection: React.FC<
                       >
                         {brand.name}
                       </Heading>
-                      {brand.tagline && (
-                        <Text
-                          fontSize="sm"
-                          color={textColor}
-                          fontStyle="italic"
-                          noOfLines={2}
-                          title={brand.tagline}
-                        >
-                          {brand.tagline}
-                        </Text>
-                      )}
-                    </VStack>
+                      <Text fontSize="sm" color={textColor} mt={1} mb={2}>
+                        {brand.tagline}
+                      </Text>
 
-                    <VStack align="stretch" spacing={2} mt={3}>
-                      <HStack align="center">
-                        {brand.isChecking ? (
-                          <Spinner size="sm" color={spinnerColor} />
-                        ) : brand.isAvailable === true ? (
-                          <Icon
-                            as={CheckCircleIcon}
-                            color="green.500"
-                            boxSize={5}
-                          />
-                        ) : brand.isAvailable === false ? (
-                          <Icon
-                            as={SmallCloseIcon}
-                            color="red.500"
-                            boxSize={5}
-                          />
-                        ) : (
-                          <Box boxSize={5} />
+                      {/* Display Suggested Domain Availability Results */}
+                      {brand.suggestedDomainAvailability &&
+                        brand.suggestedDomainAvailability.length > 0 && (
+                          <Box mt={3}>
+                            <List spacing={1} fontSize="sm">
+                              {brand.suggestedDomainAvailability.map(
+                                (item, idx) => (
+                                  <ListItem
+                                    key={`${brand.id}-sugg-avail-${idx}`}
+                                    onClick={() =>
+                                      handleDomainSuggestionClick(item.domain)
+                                    }
+                                    cursor="pointer"
+                                    _hover={{
+                                      bg: useColorModeValue(
+                                        "gray.100",
+                                        "gray.700"
+                                      ),
+                                    }}
+                                    p={1}
+                                    borderRadius="md"
+                                  >
+                                    <ListIcon
+                                      as={
+                                        item.available
+                                          ? CheckCircleIcon
+                                          : SmallCloseIcon
+                                      }
+                                      color={
+                                        item.available ? "green.500" : "red.500"
+                                      }
+                                      verticalAlign="middle"
+                                    />
+                                    {item.domain}
+                                    {item.error && (
+                                      <Text
+                                        as="span"
+                                        fontSize="xs"
+                                        color="red.500"
+                                        ml={1}
+                                      >
+                                        ({item.error})
+                                      </Text>
+                                    )}
+                                  </ListItem>
+                                )
+                              )}
+                            </List>
+                          </Box>
                         )}
-                        <Text
-                          color={textColor}
-                          fontFamily="monospace"
-                          fontSize="sm"
-                          ml={2}
-                        >
-                          {brand.domain}
-                        </Text>
-                      </HStack>
-
-                      {brand.error && (
-                        <Text
-                          fontSize="xs"
-                          color="red.500"
-                          noOfLines={2}
-                          title={brand.error}
-                        >
-                          Error: {brand.error}
-                        </Text>
-                      )}
-                      <Button
-                        colorScheme={primaryColorScheme}
-                        size="md"
-                        onClick={() => handleSuggestAlternativesClick(brand.id)}
-                      >
-                        Find Alternate Domains
-                      </Button>
+                      {/* Hide original tags if results are shown */}
+                      {(!brand.suggestedDomainAvailability ||
+                        brand.suggestedDomainAvailability.length === 0) &&
+                        brand.brandSuggestedDomains &&
+                        brand.brandSuggestedDomains.length > 0 && (
+                          <Box mt={2}>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              mb={1}
+                              color={textColor}
+                            >
+                              Suggested Domain Ideas:
+                            </Text>
+                            <HStack spacing={2} wrap="wrap">
+                              {brand.brandSuggestedDomains.map(
+                                (domain, idx) => (
+                                  <Tag
+                                    key={`${brand.id}-ai-suggested-${idx}`}
+                                    size="md"
+                                    variant="subtle"
+                                    colorScheme={primaryColorScheme}
+                                  >
+                                    {domain}
+                                  </Tag>
+                                )
+                              )}
+                            </HStack>
+                          </Box>
+                        )}
                     </VStack>
+
+                    <Box width="100%" mt={3}>
+                      {brand.brandSuggestedDomains &&
+                        brand.brandSuggestedDomains.length > 0 && (
+                          <>
+                            {brand.suggestedDomainAvailability &&
+                            brand.suggestedDomainAvailability.length > 0 ? (
+                              <HStack
+                                spacing={2}
+                                align="center"
+                                justify="center"
+                                p={2}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                borderColor={useColorModeValue(
+                                  "gray.200",
+                                  "gray.600"
+                                )}
+                                width="100%"
+                                role="status"
+                              >
+                                <InfoIcon color="blue.500" />
+                                <Text fontSize="sm" color={textColor}>
+                                  Click a domain above for more ideas
+                                </Text>
+                              </HStack>
+                            ) : (
+                              <Button
+                                size="sm"
+                                colorScheme={primaryColorScheme}
+                                onClick={() =>
+                                  handleCheckSuggestedDomains(brand.id)
+                                }
+                                isLoading={
+                                  brand.checkingSuggestedDomainsLoading
+                                }
+                                isDisabled={
+                                  brand.checkingSuggestedDomainsLoading
+                                }
+                                loadingText="Checking..."
+                                width="100%"
+                              >
+                                Check Availability
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      {brand.checkingSuggestedDomainsError && (
+                        <Alert
+                          status="error"
+                          mt={2}
+                          fontSize="xs"
+                          borderRadius="md"
+                          p={2}
+                        >
+                          <AlertIcon boxSize="14px" />
+                          <Box flex="1" ml={1}>
+                            <AlertTitle fontSize="xs" fontWeight="bold">
+                              Error checking domains!
+                            </AlertTitle>
+                            <AlertDescription display="block" fontSize="xs">
+                              {brand.checkingSuggestedDomainsError}
+                            </AlertDescription>
+                          </Box>
+                        </Alert>
+                      )}
+                    </Box>
                   </VStack>
                 </Box>
               ))}
@@ -493,64 +681,6 @@ export const BrandNameGeneratorSection: React.FC<
             </Text>
           )}
       </Box>
-      {/* Modal for Alternative Domain Suggestions */}
-      {alternativesModalData && (
-        <Modal
-          isOpen={isAlternativesModalOpen}
-          onClose={() => setIsAlternativesModalOpen(false)}
-          size="4xl"
-          scrollBehavior="inside"
-        >
-          <ModalOverlay />
-          <ModalContent bg={modalBgColor}>
-            <ModalHeader color={headingColor}>
-              Alternative Domains for "{alternativesModalData.brandDomain}"
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
-              {alternativesModalData.isLoading && (
-                <HStack justifyContent="center" my={4}>
-                  <Spinner size="xl" color={spinnerColor} />
-                  <Text color={textColor} ml={3}>
-                    Loading suggestions...
-                  </Text>
-                </HStack>
-              )}
-              {alternativesModalData.error && (
-                <Alert status="error" borderRadius="md">
-                  <AlertIcon />
-                  {alternativesModalData.error}
-                </Alert>
-              )}
-              {alternativesModalData.suggestions &&
-                alternativesModalData.suggestions.length > 0 &&
-                !alternativesModalData.isLoading && (
-                  <AlternativeSuggestionsDisplay
-                    suggestions={alternativesModalData.suggestions}
-                    domainName={alternativesModalData.brandDomain}
-                  />
-                )}
-              {alternativesModalData.suggestions &&
-                alternativesModalData.suggestions.length === 0 &&
-                !alternativesModalData.isLoading &&
-                !alternativesModalData.error && (
-                  <Text color={textColor} textAlign="center" my={4}>
-                    No alternative suggestions found for "
-                    {alternativesModalData.brandDomain}".
-                  </Text>
-                )}
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                onClick={() => setIsAlternativesModalOpen(false)}
-                colorScheme={primaryColorScheme}
-              >
-                Close
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      )}
     </Section>
   );
 };

@@ -1,7 +1,5 @@
 import axios from "axios";
 import {
-  BatchDomainCheckRequest,
-  BatchDomainCheckResponse,
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
   DomainCheckResponse,
@@ -12,8 +10,6 @@ import {
 
 // Re-export types for external use
 export type {
-  BatchDomainCheckRequest,
-  BatchDomainCheckResponse,
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
   DomainCheckRequest,
@@ -42,10 +38,6 @@ const CHECK_DOMAIN_ENDPOINT: EndpointSpec = {
   url: `${BASE_URL}/domains`,
   method: "GET",
 };
-const CHECK_BATCH_DOMAINS_ENDPOINT: EndpointSpec = {
-  url: `${BASE_URL}/domains/batch-check`,
-  method: "POST",
-};
 const SUGGEST_DOMAINS_ENDPOINT: EndpointSpec = {
   url: `${BASE_URL}/domains/suggestions`,
   method: "GET",
@@ -64,9 +56,9 @@ const LIST_TLDS_ENDPOINT: EndpointSpec = {
 export const checkDomainAvailability = async (
   domainName: string
 ): Promise<DomainCheckResponse> => {
-  console.info('[API] checkDomainAvailability - Input:', { domainName });
+  console.info("[API] checkDomainAvailability - Input:", { domainName });
   const { url, method } = CHECK_DOMAIN_ENDPOINT;
-  
+
   try {
     const response = await axios({
       url,
@@ -80,12 +72,14 @@ export const checkDomainAvailability = async (
     });
 
     const data: DomainCheckResponse = response.data;
-    console.debug('[API] checkDomainAvailability - Success Output:', data);
+    console.debug("[API] checkDomainAvailability - Success Output:", data);
     return data;
   } catch (error) {
-    console.error('[API] checkDomainAvailability - Error:', error);
+    console.error("[API] checkDomainAvailability - Error:", error);
     if (axios.isAxiosError(error)) {
-      throw new Error(`Failed to check domain availability for this top-level domain`);
+      throw new Error(
+        `Failed to check domain availability for this top-level domain`
+      );
     }
     throw new Error(
       "An unknown error occurred while checking domain availability."
@@ -102,7 +96,7 @@ export const checkDomainAvailability = async (
 export const suggestBrandNames = async (
   requestPayload: BrandNameSuggestionRequest
 ): Promise<BrandNameSuggestionResponse> => {
-  console.info('[API] suggestBrandNames - Input:', requestPayload);
+  console.info("[API] suggestBrandNames - Input:", requestPayload);
   try {
     const { url, method } = BRANDS_ENDPOINT;
     const response = await axios({
@@ -115,51 +109,15 @@ export const suggestBrandNames = async (
     });
 
     const data: BrandNameSuggestionResponse = response.data;
-    console.debug('[API] suggestBrandNames - Success Output:', data);
+    console.debug("[API] suggestBrandNames - Success Output:", data);
     return data;
   } catch (error) {
-    console.error('[API] suggestBrandNames - Error:', error);
+    console.error("[API] suggestBrandNames - Error:", error);
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.message || error.message;
       throw new Error(`Failed to generate brand names: ${message}`);
     }
     throw new Error("An unknown error occurred while generating brand names.");
-  }
-};
-
-/**
- * Checks the availability of multiple domain names by calling the API endpoint.
- * @param domains An array of domain names to check.
- * @returns A Promise that resolves with the availability information for the domains.
- * @throws An error if the API request fails or the response cannot be parsed.
- */
-export const checkBatchDomains = async (
-  domains: string[]
-): Promise<BatchDomainCheckResponse> => {
-  console.info('[API] checkBatchDomains - Input:', { domains });
-  const { url, method } = CHECK_BATCH_DOMAINS_ENDPOINT;
-  const requestPayload: BatchDomainCheckRequest = { domains };
-
-  try {
-    const response = await axios({
-      url,
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      data: requestPayload,
-    });
-
-    const data: BatchDomainCheckResponse = response.data;
-    console.debug('[API] checkBatchDomains - Success Output:', data);
-    return data;
-  } catch (error) {
-    console.error('[API] checkBatchDomains - Error:', error);
-    if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.message || error.message;
-      throw new Error(`Failed to check batch domains: ${message}`);
-    }
-    throw new Error("An unknown error occurred while checking batch domains.");
   }
 };
 
@@ -176,7 +134,11 @@ export const getDomainSuggestions = async (
   onlyAvailable: boolean = true,
   suggestionCount: number = 50
 ): Promise<GetDomainSuggestionsResponse> => {
-  console.info('[API] getDomainSuggestions - Input:', { query, onlyAvailable, suggestionCount });
+  console.info("[API] getDomainSuggestions - Input:", {
+    query,
+    onlyAvailable,
+    suggestionCount,
+  });
   const { url, method } = SUGGEST_DOMAINS_ENDPOINT;
 
   console.log(
@@ -185,7 +147,7 @@ export const getDomainSuggestions = async (
     onlyAvailable,
     suggestionCount
   );
-  
+
   try {
     const response = await axios({
       url,
@@ -214,10 +176,13 @@ export const getDomainSuggestions = async (
     const mappedData: GetDomainSuggestionsResponse = {
       suggestions: mappedSuggestions,
     };
-    console.debug("[API] getDomainSuggestions - Mapped Success Output:", mappedData);
+    console.debug(
+      "[API] getDomainSuggestions - Mapped Success Output:",
+      mappedData
+    );
     return mappedData;
   } catch (error) {
-    console.error('[API] getDomainSuggestions - Error:', error);
+    console.error("[API] getDomainSuggestions - Error:", error);
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.message || error.message;
       throw new Error(`Failed to get domain suggestions: ${message}`);
@@ -234,12 +199,10 @@ export const getDomainSuggestions = async (
  * @returns A Promise that resolves with a list of TLDs and their prices.
  * @throws An error if the API request fails or the response cannot be parsed.
  */
-export const listTlds = async (
-  tld?: string
-): Promise<GetTLDPricesResponse> => {
-  console.info('[API] listTlds - Input:', { tld });
+export const listTlds = async (tld?: string): Promise<GetTLDPricesResponse> => {
+  console.info("[API] listTlds - Input:", { tld });
   const { url, method } = LIST_TLDS_ENDPOINT;
-  
+
   try {
     const response = await axios({
       url,
@@ -250,12 +213,12 @@ export const listTlds = async (
       params: tld ? { tld } : {},
     });
 
-    console.debug('[API] listTlds - API Response:', response);
+    console.debug("[API] listTlds - API Response:", response);
     const data: GetTLDPricesResponse = response.data;
-    console.debug('[API] listTlds - Success Output:', data);
+    console.debug("[API] listTlds - Success Output:", data);
     return data;
   } catch (error) {
-    console.error('[API] listTlds - Error:', error);
+    console.error("[API] listTlds - Error:", error);
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.message || error.message;
       throw new Error(`Failed to list TLDs: ${message}`);

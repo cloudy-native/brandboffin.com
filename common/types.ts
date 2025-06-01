@@ -10,25 +10,17 @@ export interface BrandNameSuggestionRequest {
 export interface BrandNameSuggestion {
   name: string;
   tagline: string;
+  suggestedDomains: string[]; // New field for domain suggestions
 }
 
 export interface BrandNameSuggestionResponse {
   suggestions: BrandNameSuggestion[];
 }
 
-export interface BatchDomainCheckRequest {
-  domains: string[];
-  delayMs?: number; // Optional delay between checks
-}
-
 export interface DomainCheckResult {
   domain: string;
   available: boolean;
   error?: string;
-}
-
-export interface BatchDomainCheckResponse {
-  results: DomainCheckResult[];
 }
 
 export interface DomainCheckRequest {

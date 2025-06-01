@@ -81,41 +81,6 @@ class AWSDomainUtils {
   }
 
   /**
-   * Batch check with automatic retry for PENDING responses
-   */
-  async checkDomainsWithRetry(
-    domains: string[],
-    maxRetries: number = 3,
-    delayMs: number = 1000
-  ): Promise<DomainCheckResult[]> {
-    const results: DomainCheckResult[] = [];
-
-    for (const domain of domains) {
-      let result = await this.checkDomain(domain);
-      let retries = 0;
-
-      // Retry if status is PENDING
-      while (!result.available && retries < maxRetries) {
-        console.log(
-          `Domain ${domain} status is PENDING, retrying in ${delayMs * 2}ms...`
-        );
-        await this.delay(delayMs * 2);
-        result = await this.checkDomain(domain);
-        retries++;
-      }
-
-      results.push(result);
-
-      // Add delay between requests
-      if (domains.indexOf(domain) < domains.length - 1) {
-        await this.delay(delayMs);
-      }
-    }
-
-    return results;
-  }
-
-  /**
    * Get domain name suggestions based on a keyword or domain fragment.
    */
   async getDomainSuggestions(

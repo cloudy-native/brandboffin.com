@@ -15,7 +15,7 @@ interface SectionProps {
 
 const Section: React.FC<SectionProps> = ({ title, children }) => {
   const topBar = useColorModeValue(accentShade.light, accentShade.dark);
-  const headingColor= useColorModeValue(headingShade.light, headingShade.dark);
+  const headingColor = useColorModeValue(headingShade.light, headingShade.dark);
 
   return (
     <Box pb={10}>

@@ -14,7 +14,7 @@ import type { DomainSuggestion as ApiDomainSuggestion } from "../utils/api";
 
 export interface AlternativeSuggestionsDisplayProps {
   suggestions: ApiDomainSuggestion[] | undefined;
-  domainName?: string; // Original domain name for context, if needed
+  domainName?: string;
   onSuggestionClick?: (domainName: string) => void;
 }
 

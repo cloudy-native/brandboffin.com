@@ -31,3 +31,17 @@ export const headerFooterBackgroundShade: Shade = shadesFor(
   "400",
   "800"
 );
+
+export function getThemedColorLight(
+  colorScheme: string,
+  shadeNumber: string
+): string {
+  return `${colorScheme}.${shadeNumber}`;
+}
+
+export function getThemedColorDark(
+  colorScheme: string,
+  shadeNumber: string
+): string {
+  return `${colorScheme}.${shadeNumber}`;
+}

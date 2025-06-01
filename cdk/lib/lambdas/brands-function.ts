@@ -76,33 +76,41 @@ function constructClaudePrompt(
     count = defaultCount,
   } = request;
 
-  // Start with a clear instruction about the desired output (brand names AND taglines)
-  let fullPrompt = `Your goal is to generate ${count} unique and creative brand name and tagline pairs.\n\nConsider the following criteria carefully:\n- Core Idea/Description: ${prompt}\n`;
+  let fullPrompt = `Your goal is to generate ${count} unique and creative brand name, tagline, and domain suggestion sets.\n\nConsider the following criteria carefully:\n- Core Idea/Description: ${prompt}\n`;
 
   if (industry) fullPrompt += `- Industry: ${industry}\n`;
-  if (style) fullPrompt += `- Desired Style/Vibe: ${style}\n`; // Slightly rephrased for clarity
+  if (style) fullPrompt += `- Desired Style/Vibe: ${style}\n`;
   if (keywords && keywords.length > 0) {
-    fullPrompt += `- Key Themes/Keywords to incorporate or allude to: ${keywords.join(", ")}\n`; // Clarify role of keywords
+    fullPrompt += `- Key Themes/Keywords to incorporate or allude to: ${keywords.join(", ")}\n`;
   }
   if (length) {
-    fullPrompt += `- Target Brand Name Length: Approximately ${length} characters. Shorter is often better if it's impactful.\n`; // Added a small hint
+    fullPrompt += `- Target Brand Name Length: Approximately ${length} characters. Shorter is often better if it's impactful.\n`;
   }
 
   fullPrompt += `
-For each of the ${count} suggestions:
-1.  **Brand Name:** Should be memorable, distinct, easy to spell, and easy to pronounce. It should be relevant to the core idea and style. If an industry is provided, aim for names that are differentiated from common existing brands in that industry.
-2.  **Tagline:** Should be concise (ideally 3-7 words), compelling, and capture the brand's essence or unique selling proposition. It must complement the brand name.
+For each of the ${count} suggestions, provide:
+1.  **Brand Name:** Memorable, distinct, easy to spell and pronounce, relevant to the core idea and style. Differentiated if an industry is provided.
+2.  **Tagline:** Concise (3-7 words), compelling, capturing the brand's essence, complementing the brand name.
+3.  **Suggested Domains:** An array of 3-5 relevant domain name suggestions (e.g., brandname.com, getbrandname.io, brandname.ai). Include a mix of common and creative TLDs.
 
 Output Format:
-Provide the response as a list of brand name and tagline pairs. Each pair MUST be formatted exactly as follows, with 'Brand Name:' and 'Tagline:' on separate lines, followed by a blank line before the next pair. Do not include any numbering, introductory/concluding text, or any other explanations.
+VERY IMPORTANT: Provide the entire response as a single, valid JSON array. Each element in the array should be an object with the following keys: "name" (string), "tagline" (string), and "suggestedDomains" (array of strings). Do not include any introductory/concluding text, explanations, or any other text outside of this JSON array.
 
-Brand Name: [The Brand Name]
-Tagline: [The Tagline]
-
-Brand Name: [Another Brand Name]
-Tagline: [Another Tagline]
-`; // Reinforced output format and added detail for name/tagline quality
-
+Example of the exact JSON output format required:
+[
+  {
+    "name": "Innovatech Solutions",
+    "tagline": "Engineering tomorrow's innovations, today.",
+    "suggestedDomains": ["innovatechsolutions.com", "innovatech.ai", "getinnovatech.io"]
+  },
+  {
+    "name": "EcoBloom Organics",
+    "tagline": "Naturally nurturing your well-being.",
+    "suggestedDomains": ["ecobloomorganics.com", "ecobloom.store", "bloomsustainably.com"]
+  }
+  // ... more suggestions if requested, up to ${count}
+]
+`;
   return fullPrompt;
 }
 
@@ -135,7 +143,7 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
   try {
     const claudeModel = process.env.CLAUDE_MODEL || "claude-3-opus-20240229";
     const temperature = parseFloat(process.env.CLAUDE_TEMPERATURE || "0.7");
-    const maxTokens = parseInt(process.env.CLAUDE_MAX_TOKENS || "200", 10); // Reduced max tokens for name lists
+    const maxTokens = parseInt(process.env.CLAUDE_MAX_TOKENS || "2000", 10); // Increased max tokens for JSON output
 
     const messages: MessageParam[] = [
       { role: "user", content: userPromptContent },
@@ -157,25 +165,30 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
       response.content.length > 0 &&
       response.content[0].type === "text"
     ) {
-      const text = response.content[0].text.trim();
-      const pairs = text.split(/\n\s*\n/); // Split by blank lines between pairs
-      for (const pair of pairs) {
-        const lines = pair.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        let name = "";
-        let tagline = "";
-        if (lines.length >= 2) {
-          const nameLine = lines.find(l => l.startsWith("Brand Name:"));
-          const taglineLine = lines.find(l => l.startsWith("Tagline:"));
-          if (nameLine) {
-            name = nameLine.substring("Brand Name:".length).trim();
-          }
-          if (taglineLine) {
-            tagline = taglineLine.substring("Tagline:".length).trim();
-          }
+      const modelOutputText = response.content[0].text.trim();
+      console.log("Raw model output text:", modelOutputText); // For debugging
+      try {
+        // Attempt to parse the entire model output as JSON
+        const parsedSuggestions = JSON.parse(modelOutputText);
+
+        // Validate if it's an array and if elements have the expected structure
+        if (Array.isArray(parsedSuggestions)) {
+          suggestions = parsedSuggestions.filter(
+            (item: any) =>
+              item &&
+              typeof item.name === 'string' &&
+              typeof item.tagline === 'string' &&
+              Array.isArray(item.suggestedDomains) &&
+              item.suggestedDomains.every((d: any) => typeof d === 'string')
+          ) as BrandNameSuggestion[];
+        } else {
+          console.error("Model output was not a JSON array as expected. Output:", modelOutputText);
         }
-        if (name && tagline) {
-          suggestions.push({ name, tagline });
-        }
+      } catch (jsonParseError: any) {
+        console.error("Failed to parse model output as JSON:", jsonParseError.message);
+        console.error("Model output that failed to parse:", modelOutputText);
+        // Optionally, throw an HttpError to inform the client
+        // throw new HttpError("Failed to parse brand suggestions from model output. Please try again.", 500);
       }
     }
 
