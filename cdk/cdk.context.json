@@ -7,10 +7,7 @@
     "Id": "/hostedzone/Z00850691198EKLNOSSI0",
     "Name": "lingohog.com."
   },
-  "acknowledged-issue-numbers": [
-    30717,
-    30717
-  ],
+  "acknowledged-issue-numbers": [30717, 30717],
   "hosted-zone:account=607477397669:domainName=lingohog.com:region=ap-southeast-7": {
     "Id": "/hostedzone/Z00850691198EKLNOSSI0",
     "Name": "lingohog.com."

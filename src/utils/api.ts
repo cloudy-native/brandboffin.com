@@ -12,6 +12,7 @@ import {
 export type {
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
+  BrandNameSuggestion, // Added this line
   DomainCheckRequest,
   DomainCheckResponse,
   DomainCheckResult,
@@ -54,7 +55,7 @@ const LIST_TLDS_ENDPOINT: EndpointSpec = {
  * @throws An error if the API request fails or the response cannot be parsed.
  */
 export const checkDomainAvailability = async (
-  domainName: string
+  domainName: string,
 ): Promise<DomainCheckResponse> => {
   console.info("[API] checkDomainAvailability - Input:", { domainName });
   const { url, method } = CHECK_DOMAIN_ENDPOINT;
@@ -72,17 +73,16 @@ export const checkDomainAvailability = async (
     });
 
     const data: DomainCheckResponse = response.data;
-    console.debug("[API] checkDomainAvailability - Success Output:", data);
     return data;
   } catch (error) {
     console.error("[API] checkDomainAvailability - Error:", error);
     if (axios.isAxiosError(error)) {
       throw new Error(
-        `Failed to check domain availability for this top-level domain`
+        `Failed to check domain availability for this top-level domain`,
       );
     }
     throw new Error(
-      "An unknown error occurred while checking domain availability."
+      "An unknown error occurred while checking domain availability.",
     );
   }
 };
@@ -94,7 +94,7 @@ export const checkDomainAvailability = async (
  * @throws An error if the API request fails or the response cannot be parsed.
  */
 export const suggestBrandNames = async (
-  requestPayload: BrandNameSuggestionRequest
+  requestPayload: BrandNameSuggestionRequest,
 ): Promise<BrandNameSuggestionResponse> => {
   console.info("[API] suggestBrandNames - Input:", requestPayload);
   try {
@@ -109,7 +109,6 @@ export const suggestBrandNames = async (
     });
 
     const data: BrandNameSuggestionResponse = response.data;
-    console.debug("[API] suggestBrandNames - Success Output:", data);
     return data;
   } catch (error) {
     console.error("[API] suggestBrandNames - Error:", error);
@@ -129,10 +128,20 @@ export const suggestBrandNames = async (
  * @returns A Promise that resolves with domain suggestions.
  * @throws An error if the API request fails or the response cannot be parsed.
  */
+// Define interfaces for the raw API response structure for domain suggestions
+interface ApiDomainSuggestion {
+  domainName?: string;
+  available?: boolean;
+}
+
+interface ApiGetDomainSuggestionsResponse {
+  suggestions?: ApiDomainSuggestion[];
+}
+
 export const getDomainSuggestions = async (
   query: string,
   onlyAvailable: boolean = true,
-  suggestionCount: number = 50
+  suggestionCount: number = 50,
 ): Promise<GetDomainSuggestionsResponse> => {
   console.info("[API] getDomainSuggestions - Input:", {
     query,
@@ -140,13 +149,6 @@ export const getDomainSuggestions = async (
     suggestionCount,
   });
   const { url, method } = SUGGEST_DOMAINS_ENDPOINT;
-
-  console.log(
-    "Fetching domain suggestions for",
-    query,
-    onlyAvailable,
-    suggestionCount
-  );
 
   try {
     const response = await axios({
@@ -162,24 +164,19 @@ export const getDomainSuggestions = async (
       },
     });
 
-    const rawData = response.data as any; // Parse as any to handle potential mismatch
-    console.debug("[API] getDomainSuggestions - Raw API Response:", rawData);
+    const rawData = response.data as ApiGetDomainSuggestionsResponse;
 
     // Manually map to the expected GetDomainSuggestionsResponse structure
     const mappedSuggestions: DomainSuggestion[] = (
       rawData.suggestions || []
-    ).map((sugg: any) => ({
+    ).map((sugg: ApiDomainSuggestion) => ({
       domainName: sugg.domainName || "",
-      available: sugg.available,
+      available: sugg.available ?? false, // Ensure 'available' is a boolean
     }));
 
     const mappedData: GetDomainSuggestionsResponse = {
       suggestions: mappedSuggestions,
     };
-    console.debug(
-      "[API] getDomainSuggestions - Mapped Success Output:",
-      mappedData
-    );
     return mappedData;
   } catch (error) {
     console.error("[API] getDomainSuggestions - Error:", error);
@@ -188,7 +185,7 @@ export const getDomainSuggestions = async (
       throw new Error(`Failed to get domain suggestions: ${message}`);
     }
     throw new Error(
-      "An unknown error occurred while getting domain suggestions."
+      "An unknown error occurred while getting domain suggestions.",
     );
   }
 };
@@ -213,9 +210,7 @@ export const listTlds = async (tld?: string): Promise<GetTLDPricesResponse> => {
       params: tld ? { tld } : {},
     });
 
-    console.debug("[API] listTlds - API Response:", response);
     const data: GetTLDPricesResponse = response.data;
-    console.debug("[API] listTlds - Success Output:", data);
     return data;
   } catch (error) {
     console.error("[API] listTlds - Error:", error);

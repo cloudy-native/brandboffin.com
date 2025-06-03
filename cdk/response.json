@@ -1,1 +1,9 @@
-{"errorType":"TypeError","errorMessage":"Cannot read properties of undefined (reading 'LogGroupName')","trace":["TypeError: Cannot read properties of undefined (reading 'LogGroupName')","    at Runtime.handler (/var/task/index.js:1:2398)","    at Runtime.handleOnceNonStreaming (file:///var/runtime/index.mjs:1187:29)"]}
+{
+  "errorType": "TypeError",
+  "errorMessage": "Cannot read properties of undefined (reading 'LogGroupName')",
+  "trace": [
+    "TypeError: Cannot read properties of undefined (reading 'LogGroupName')",
+    "    at Runtime.handler (/var/task/index.js:1:2398)",
+    "    at Runtime.handleOnceNonStreaming (file:///var/runtime/index.mjs:1187:29)"
+  ]
+}

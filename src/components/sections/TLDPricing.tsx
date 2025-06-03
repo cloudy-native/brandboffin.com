@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   Collapse,
-  Container,
-  Heading,
   Spinner,
   Table,
   TableContainer,
@@ -16,21 +14,23 @@ import {
   Thead,
   Tr,
   useColorModeValue,
-  VStack,
-} from "@chakra-ui/react";
-import React from "react";
-import { FaList } from "react-icons/fa";
-import { listTlds, type GetTLDPricesResponse, type TLDPrice } from "../../utils/api";
-import Section from "../Section";
-import { primaryColorScheme } from "../../theme/design";
+} from '@chakra-ui/react';
+import React from 'react';
+import { FaList } from 'react-icons/fa';
+import { primaryColorScheme } from '../../theme/design';
+import {
+  listTlds,
+  type GetTLDPricesResponse,
+  type TLDPrice,
+} from '../../utils/api';
+import Section from '../Section';
 
-interface TLDPricingProps {
-}
-
-export const TLDPricing: React.FC<TLDPricingProps> = () => {
+export const TLDPricing: React.FC = () => {
   const [isTldListVisible, setIsTldListVisible] =
     React.useState<boolean>(false);
-  const [tldList, setTldList] = React.useState<GetTLDPricesResponse | null>(null);
+  const [tldList, setTldList] = React.useState<GetTLDPricesResponse | null>(
+    null,
+  );
   const [tldsLoading, setTldsLoading] = React.useState<boolean>(false);
   const [tldsError, setTldsError] = React.useState<string | null>(null);
 
@@ -51,13 +51,15 @@ export const TLDPricing: React.FC<TLDPricingProps> = () => {
       if (err instanceof Error) {
         setTldsError(err.message);
       } else {
-        setTldsError("Failed to load TLD list.");
+        setTldsError('Failed to load TLD list.');
       }
     } finally {
       setTldsLoading(false);
     }
   };
-  
+
+  const tableBackgroundColor = useColorModeValue('gray.50', 'gray.700');
+
   return (
     <Section title="Top-Level Domains">
       <Button
@@ -68,15 +70,14 @@ export const TLDPricing: React.FC<TLDPricingProps> = () => {
         w="full" // Make button full width for better centering
       >
         {!tldList || tldList.prices.length === 0
-          ? "Fetch Top-Level Domains"
+          ? 'Fetch Top-Level Domains'
           : isTldListVisible
-            ? "Hide Top-Level Domains"
-            : "Show Top-Level Domains"}
+            ? 'Hide Top-Level Domains'
+            : 'Show Top-Level Domains'}
       </Button>
 
       <Collapse in={isTldListVisible} animateOpacity>
         <Box mt={4}>
-          {" "}
           {/* Add some margin when visible */}
           {tldsLoading &&
             !tldList && ( // Show spinner only on initial load or if list is empty
@@ -101,7 +102,7 @@ export const TLDPricing: React.FC<TLDPricingProps> = () => {
               borderWidth="1px"
               borderRadius="lg"
               p={4}
-              bg={useColorModeValue("white", "gray.700")}
+              bg={tableBackgroundColor}
             >
               <Text fontSize="sm" color="gray.500" mb={2}>
                 {tldList.prices.length} top-level domains.
@@ -121,18 +122,18 @@ export const TLDPricing: React.FC<TLDPricingProps> = () => {
                       <Td fontWeight="medium">.{item.tld}</Td>
                       <Td isNumeric>
                         {item.registrationPrice !== undefined
-                          ? `${item.registrationPrice.toFixed(2)} ${item.currency || ""}`
-                          : "N/A"}
+                          ? `${item.registrationPrice.toFixed(2)} ${item.currency || ''}`
+                          : 'N/A'}
                       </Td>
                       <Td isNumeric>
                         {item.transferPrice !== undefined
-                          ? `${item.transferPrice.toFixed(2)} ${item.currency || ""}`
-                          : "N/A"}
+                          ? `${item.transferPrice.toFixed(2)} ${item.currency || ''}`
+                          : 'N/A'}
                       </Td>
                       <Td isNumeric>
                         {item.renewalPrice !== undefined
-                          ? `${item.renewalPrice.toFixed(2)} ${item.currency || ""}`
-                          : "N/A"}
+                          ? `${item.renewalPrice.toFixed(2)} ${item.currency || ''}`
+                          : 'N/A'}
                       </Td>
                     </Tr>
                   ))}
@@ -150,4 +151,3 @@ export const TLDPricing: React.FC<TLDPricingProps> = () => {
     </Section>
   );
 };
-

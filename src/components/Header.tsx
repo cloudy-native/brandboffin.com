@@ -1,4 +1,4 @@
-import { MoonIcon, SunIcon } from "@chakra-ui/icons";
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import {
   Box,
   Container,
@@ -9,10 +9,10 @@ import {
   Text,
   useColorMode,
   useColorModeValue,
-} from "@chakra-ui/react";
-import { Link as GatsbyLink } from "gatsby";
-import React from "react";
-import { headerFooterBackgroundShade, textShade } from "../theme/design";
+} from '@chakra-ui/react';
+import { Link as GatsbyLink } from 'gatsby';
+import React from 'react';
+import { headerFooterBackgroundShade, textShade } from '../theme/design';
 
 interface NavItem {
   label: string;
@@ -31,7 +31,7 @@ const Header = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const backgroundColor = useColorModeValue(
     headerFooterBackgroundShade.light,
-    headerFooterBackgroundShade.dark
+    headerFooterBackgroundShade.dark,
   );
   const textColor = useColorModeValue(textShade.light, textShade.dark);
 
@@ -48,9 +48,9 @@ const Header = () => {
     >
       <Container maxW="container.xl" px={4}>
         <Flex
-          minH={"60px"}
+          minH={'60px'}
           py={{ base: 2 }}
-          align={"center"}
+          align={'center'}
           justify="space-between"
         >
           <Flex flex={{ base: 1 }} justify="start">
@@ -58,7 +58,7 @@ const Header = () => {
               as={GatsbyLink}
               to="/"
               textAlign="left"
-              fontFamily={"heading"}
+              fontFamily={'heading'}
               fontWeight="bold"
               fontSize="xl"
               color={textColor}
@@ -67,14 +67,14 @@ const Header = () => {
             </Text>
 
             <Flex display="flex" ml={10}>
-              <Stack direction={"row"} spacing={6} align="center">
+              <Stack direction={'row'} spacing={6} align="center">
                 {NAV_ITEMS.map((navItem) => (
                   <Link
                     key={navItem.label}
                     as={!navItem.isExternal ? GatsbyLink : undefined}
                     to={!navItem.isExternal ? navItem.href : undefined}
                     href={navItem.isExternal ? navItem.href : undefined}
-                    fontSize={"md"}
+                    fontSize={'md'}
                     fontWeight={500}
                     color={textColor}
                   >
@@ -85,11 +85,11 @@ const Header = () => {
             </Flex>
           </Flex>
 
-          <Stack flex={1} justify={"flex-end"} direction={"row"} spacing={6}>
+          <Stack flex={1} justify={'flex-end'} direction={'row'} spacing={6}>
             <IconButton
-              aria-label={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`}
+              aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
               variant="ghost"
-              icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+              icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
               onClick={toggleColorMode}
               color={textColor}
             />

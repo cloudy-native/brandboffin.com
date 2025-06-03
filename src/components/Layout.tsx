@@ -11,7 +11,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const backgroundColor = useColorModeValue(
     backgroundShade.light,
-    backgroundShade.dark
+    backgroundShade.dark,
   );
 
   return (

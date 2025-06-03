@@ -1,8 +1,17 @@
-import React from 'react';
-import { Button, Link, Box, Text, Icon, useColorModeValue, IconProps, ButtonProps } from '@chakra-ui/react';
+import React from "react";
+import {
+  Button,
+  Link,
+  Box,
+  Text,
+  Icon,
+  useColorModeValue,
+  IconProps,
+  ButtonProps,
+} from "@chakra-ui/react";
 
 // Coffee cup icon component
-const CoffeeIcon: React.FC<IconProps> = (props) => (
+const CoffeeIcon: React.FC<IconProps> = props => (
   <Icon viewBox="0 0 24 24" {...props}>
     <path
       fill="currentColor"
@@ -14,19 +23,22 @@ const CoffeeIcon: React.FC<IconProps> = (props) => (
 interface BuyMeCoffeeButtonProps {
   username?: string;
   color?: string; // This prop seems unused, Chakra button color is handled by 'bg' and 'colorScheme'
-  size?: ButtonProps['size'];
+  size?: ButtonProps["size"];
 }
 
-const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({ username = "stephen.harrison", size = "md" }) => {
-  const bgColor = useColorModeValue('yellow.400', 'yellow.500');
-  const hoverBgColor = useColorModeValue('yellow.500', 'yellow.600');
-  const textColor = useColorModeValue('gray.800', 'gray.900');
-  
+const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({
+  username = "stephen.harrison",
+  size = "md",
+}) => {
+  const bgColor = useColorModeValue("yellow.400", "yellow.500");
+  const hoverBgColor = useColorModeValue("yellow.500", "yellow.600");
+  const textColor = useColorModeValue("gray.800", "gray.900");
+
   // Default link if no username is provided
   const buyMeACoffeeUrl = `https://www.buymeacoffee.com/${username}`;
 
   return (
-    <Link href={buyMeACoffeeUrl} isExternal style={{ textDecoration: 'none' }}>
+    <Link href={buyMeACoffeeUrl} isExternal style={{ textDecoration: "none" }}>
       <Button
         leftIcon={<CoffeeIcon />}
         bg={bgColor}
@@ -36,12 +48,12 @@ const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({ username = "steph
         px={6}
         _hover={{
           bg: hoverBgColor,
-          transform: 'translateY(-2px)',
-          boxShadow: 'md',
+          transform: "translateY(-2px)",
+          boxShadow: "md",
         }}
         _active={{
-          transform: 'translateY(0)',
-          boxShadow: 'sm',
+          transform: "translateY(0)",
+          boxShadow: "sm",
         }}
         transition="all 0.2s"
         borderRadius="full"

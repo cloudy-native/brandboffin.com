@@ -7,10 +7,10 @@ import {
   Text,
   useColorModeValue,
   VStack,
-} from "@chakra-ui/react";
-import React from "react";
-import { cardBackgroundShade, headingShade, textShade } from "../theme/design";
-import type { DomainSuggestion as ApiDomainSuggestion } from "../utils/api";
+} from '@chakra-ui/react';
+import React from 'react';
+import { cardBackgroundShade, headingShade, textShade } from '../theme/design';
+import type { DomainSuggestion as ApiDomainSuggestion } from '../utils/api';
 
 export interface AlternativeSuggestionsDisplayProps {
   suggestions: ApiDomainSuggestion[] | undefined;
@@ -25,10 +25,10 @@ interface GroupedByTldAndAvailability {
 
 export const AlternativeSuggestionsDisplay: React.FC<
   AlternativeSuggestionsDisplayProps
-> = ({ suggestions, domainName, onSuggestionClick }) => {
+> = ({ suggestions, domainName: _domainName, onSuggestionClick }) => {
   const groupSuggestionsByTld = React.useCallback(
     (
-      suggestions: ApiDomainSuggestion[] = []
+      suggestions: ApiDomainSuggestion[] = [],
     ): Record<string, GroupedByTldAndAvailability> => {
       return suggestions.reduce(
         (acc, suggestion) => {
@@ -36,13 +36,13 @@ export const AlternativeSuggestionsDisplay: React.FC<
           if (!domainName) {
             return acc;
           }
-          const firstDotIndex = domainName.indexOf(".");
+          const firstDotIndex = domainName.indexOf('.');
           const tld =
             firstDotIndex > 0
               ? domainName.substring(firstDotIndex)
               : domainName.length > 0
-                ? ".other" // Group domains without a clear TLD (e.g. just 'example')
-                : "";
+                ? '.other' // Group domains without a clear TLD (e.g. just 'example')
+                : '';
           if (!tld) return acc;
 
           if (!acc[tld]) {
@@ -56,15 +56,19 @@ export const AlternativeSuggestionsDisplay: React.FC<
           }
           return acc;
         },
-        {} as Record<string, GroupedByTldAndAvailability>
+        {} as Record<string, GroupedByTldAndAvailability>,
       );
     },
-    []
+    [],
   );
 
-  const cardBgColor = useColorModeValue(cardBackgroundShade.light, cardBackgroundShade.dark);
+  const cardBgColor = useColorModeValue(
+    cardBackgroundShade.light,
+    cardBackgroundShade.dark,
+  );
   const headingColor = useColorModeValue(headingShade.light, headingShade.dark);
   const textColor = useColorModeValue(textShade.light, textShade.dark);
+  const listItemHoverBg = useColorModeValue('gray.100', 'gray.700');
 
   const processedSuggestions = React.useMemo(() => {
     const suggestionsToList = suggestions || [];
@@ -76,7 +80,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
       return (
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4} mt={3}>
           {Object.entries(processedSuggestions)
-            .sort(([tldA, groupsA], [tldB, groupsB]) => {
+            .sort(([_tldA, groupsA], [_tldB, groupsB]) => {
               const totalA =
                 groupsA.available.length + groupsA.unavailable.length;
               const totalB =
@@ -91,8 +95,8 @@ export const AlternativeSuggestionsDisplay: React.FC<
                 borderRadius="lg"
                 boxShadow="md"
                 bg={cardBgColor}
-                display="flex" // Added for consistency
-                flexDirection="column" // Added for consistency
+                display="flex"
+                flexDirection="column"
               >
                 <Heading
                   size="sm"
@@ -106,11 +110,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                 <VStack spacing={3} align="stretch">
                   {domainGroups.available.length > 0 && (
                     <Box>
-                      <Heading
-                        size="xs"
-                        color={headingColor}
-                        mb={1.5}
-                      >
+                      <Heading size="xs" color={headingColor} mb={1.5}>
                         Available
                       </Heading>
                       <List spacing={1} fontSize="sm">
@@ -124,14 +124,11 @@ export const AlternativeSuggestionsDisplay: React.FC<
                                 ? () => onSuggestionClick(sugg.domainName!)
                                 : undefined
                             }
-                            cursor={onSuggestionClick ? "pointer" : "default"}
+                            cursor={onSuggestionClick ? 'pointer' : 'default'}
                             _hover={
                               onSuggestionClick
                                 ? {
-                                    bg: useColorModeValue(
-                                      "gray.100",
-                                      "gray.700"
-                                    ),
+                                    bg: listItemHoverBg,
                                   }
                                 : {}
                             }
@@ -145,11 +142,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
                   )}
                   {domainGroups.unavailable.length > 0 && (
                     <Box>
-                      <Heading
-                        size="xs"
-                        color={headingColor}
-                        mb={1.5}
-                      >
+                      <Heading size="xs" color={headingColor} mb={1.5}>
                         Not Available
                       </Heading>
                       <List spacing={1} fontSize="sm">
@@ -163,24 +156,17 @@ export const AlternativeSuggestionsDisplay: React.FC<
                                 ? () => onSuggestionClick(sugg.domainName!)
                                 : undefined
                             }
-                            cursor={onSuggestionClick ? "pointer" : "default"}
+                            cursor={onSuggestionClick ? 'pointer' : 'default'}
                             _hover={
                               onSuggestionClick
                                 ? {
-                                    bg: useColorModeValue(
-                                      "gray.100",
-                                      "gray.700"
-                                    ),
+                                    bg: listItemHoverBg,
                                   }
                                 : {}
                             }
                             borderRadius="md"
                           >
-                            <Text
-                              color={textColor}
-                            >
-                              {sugg.domainName}
-                            </Text>
+                            <Text color={textColor}>{sugg.domainName}</Text>
                           </ListItem>
                         ))}
                       </List>
@@ -208,11 +194,7 @@ export const AlternativeSuggestionsDisplay: React.FC<
     }
   } else if (suggestions && suggestions.length === 0) {
     return (
-      <Text
-        fontSize="sm"
-        color={textColor}
-        mt={3}
-      >
+      <Text fontSize="sm" color={textColor} mt={3}>
         No alternative suggestions found.
       </Text>
     );

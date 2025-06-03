@@ -9,11 +9,15 @@ import {
   BrandNameSuggestionResponse,
   BrandNameSuggestion,
 } from "../../../common/types";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
+import {
+  CoreLambdaLogic,
+  createApiHandler,
+  HttpError,
+} from "./utils/lambda-utils";
 
 // Initialize clients outside the handler for potential reuse
 const secretsClient = new SecretsManagerClient({});
-let anthropic: Anthropic | undefined; 
+let anthropic: Anthropic | undefined;
 
 async function getApiKey(secretName: string): Promise<string> {
   console.log("Retrieving API key from Secrets Manager for secret", secretName);
@@ -26,22 +30,31 @@ async function getApiKey(secretName: string): Promise<string> {
         return secret.apiKey;
       }
       throw new Error(
-        "'apiKey' field not found or not a string in secret JSON."
+        "'apiKey' field not found or not a string in secret JSON.",
       );
     }
     throw new Error(
-      "API key not found in secret string (SecretString is empty)."
+      "API key not found in secret string (SecretString is empty).",
     );
-  } catch (error: any) {
-    console.error(
-      `Error retrieving API key '${secretName}':`,
-      error.message,
-      error
-    );
+  } catch (error: unknown) {
+    let detailMessage = "Unknown error during API key retrieval";
+    if (error instanceof Error) {
+      detailMessage = error.message;
+      console.error(
+        `Error retrieving API key '${secretName}':`,
+        error.message,
+        error,
+      );
+    } else {
+      console.error(
+        `Error retrieving API key '${secretName}':`,
+        error,
+      );
+    }
     throw new HttpError(
       `Could not retrieve API key from Secrets Manager for secret '${secretName}'.`,
       500,
-      { detail: error.message }
+      { detail: detailMessage },
     );
   }
 }
@@ -55,7 +68,7 @@ async function initializeAnthropicClient(): Promise<Anthropic> {
     console.error("CLAUDE_SECRET_NAME environment variable not set.");
     throw new HttpError(
       "Server configuration error: CLAUDE_SECRET_NAME not set.",
-      500
+      500,
     );
   }
   const apiKey = await getApiKey(claudeSecretName);
@@ -65,7 +78,7 @@ async function initializeAnthropicClient(): Promise<Anthropic> {
 
 function constructClaudePrompt(
   request: BrandNameSuggestionRequest,
-  defaultCount: number
+  defaultCount: number,
 ): string {
   const {
     prompt, // This is the "description"
@@ -91,7 +104,7 @@ function constructClaudePrompt(
 For each of the ${count} suggestions, provide:
 1.  **Brand Name:** Memorable, distinct, easy to spell and pronounce, relevant to the core idea and style. Differentiated if an industry is provided.
 2.  **Tagline:** Concise (3-7 words), compelling, capturing the brand's essence, complementing the brand name.
-3.  **Suggested Domains:** An array of 3-5 relevant domain name suggestions (e.g., brandname.com, getbrandname.io, brandname.ai). Include a mix of common and creative TLDs.
+3.  **Suggested Domains:** An array of 3-5 relevant domain name suggestions (e.g., brandname.com, getbrandname.io, brandname.ai). Include a mix of common and creative TLDs. Only include TLDs that are relevant to the brand name. Only include TLDs that are valid.
 
 Output Format:
 VERY IMPORTANT: Provide the entire response as a single, valid JSON array. Each element in the array should be an object with the following keys: "name" (string), "tagline" (string), and "suggestedDomains" (array of strings). Do not include any introductory/concluding text, explanations, or any other text outside of this JSON array.
@@ -117,7 +130,7 @@ Example of the exact JSON output format required:
 const brandNameSuggesterLogic: CoreLambdaLogic<
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse
-> = async (payload) => {
+> = async payload => {
   if (
     !payload.body ||
     !payload.body.prompt ||
@@ -126,7 +139,7 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
   ) {
     throw new HttpError(
       "Prompt is required and must be a non-empty string",
-      400
+      400,
     );
   }
 
@@ -166,26 +179,43 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
       response.content[0].type === "text"
     ) {
       const modelOutputText = response.content[0].text.trim();
-      console.log("Raw model output text:", modelOutputText); // For debugging
+      interface PotentialSuggestion {
+        name?: unknown;
+        tagline?: unknown;
+        suggestedDomains?: unknown;
+        [key: string]: unknown;
+      }
       try {
-        // Attempt to parse the entire model output as JSON
-        const parsedSuggestions = JSON.parse(modelOutputText);
+        const parsedOutput = JSON.parse(modelOutputText) as unknown;
 
-        // Validate if it's an array and if elements have the expected structure
-        if (Array.isArray(parsedSuggestions)) {
-          suggestions = parsedSuggestions.filter(
-            (item: any) =>
-              item &&
-              typeof item.name === 'string' &&
-              typeof item.tagline === 'string' &&
-              Array.isArray(item.suggestedDomains) &&
-              item.suggestedDomains.every((d: any) => typeof d === 'string')
-          ) as BrandNameSuggestion[];
+        if (Array.isArray(parsedOutput)) {
+          suggestions = parsedOutput.filter(
+            (item: unknown): item is BrandNameSuggestion => {
+              const potentialItem = item as PotentialSuggestion;
+              return (
+                potentialItem != null &&
+                typeof potentialItem.name === "string" &&
+                typeof potentialItem.tagline === "string" &&
+                Array.isArray(potentialItem.suggestedDomains) &&
+                potentialItem.suggestedDomains.every((d: unknown) => typeof d === "string")
+              );
+            }
+          );
         } else {
-          console.error("Model output was not a JSON array as expected. Output:", modelOutputText);
+          console.error(
+            "Model output was not a JSON array as expected. Output:",
+            modelOutputText,
+          );
         }
-      } catch (jsonParseError: any) {
-        console.error("Failed to parse model output as JSON:", jsonParseError.message);
+      } catch (jsonParseError: unknown) {
+        let errorMsg = "Unknown JSON parsing error";
+        if (jsonParseError instanceof Error) {
+            errorMsg = jsonParseError.message;
+        }
+        console.error(
+          "Failed to parse model output as JSON:",
+          errorMsg,
+        );
         console.error("Model output that failed to parse:", modelOutputText);
         // Optionally, throw an HttpError to inform the client
         // throw new HttpError("Failed to parse brand suggestions from model output. Please try again.", 500);
@@ -196,23 +226,36 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
     suggestions = suggestions.slice(0, requestedCount);
 
     console.log("Returning suggestions:", suggestions);
-    
+
     return { suggestions };
-  } catch (error: any) {
-    console.error("Error calling Claude API:", error.message, error);
+  } catch (error: unknown) {
+    let errorMessage = "An unknown error occurred";
+    let errorStatus = 500;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    // Attempt to get status if it exists, common in HTTP related errors
+    if (typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number') {
+      errorStatus = error.status;
+    }
+
+    console.error("Error calling Claude API:", errorMessage, error);
     // Check for specific Anthropic error types if available/needed
     // e.g., if (error instanceof Anthropic.APIError) { ... }
+    // If error is already an HttpError, it might be better to rethrow it or handle its properties directly.
+    // For now, we construct a new HttpError based on extracted message and status.
     throw new HttpError(
-      error.message || "Failed to generate brand name suggestions",
-      error.status || 500
+      errorMessage || "Failed to generate brand name suggestions",
+      errorStatus,
     );
   }
 };
 
-export const handler = createApiHandler<BrandNameSuggestionRequest, BrandNameSuggestionResponse>(
-  brandNameSuggesterLogic,
-  {
-    allowedMethods: ["POST"],
-    isBodyRequired: true,
-  }
-);
+export const handler = createApiHandler<
+  BrandNameSuggestionRequest,
+  BrandNameSuggestionResponse
+>(brandNameSuggesterLogic, {
+  allowedMethods: ["POST"],
+  isBodyRequired: true,
+});

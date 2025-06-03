@@ -20,6 +20,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import validator from "validator";
+import axios from "axios";
 import { borderShade, primaryColorScheme } from "../../theme/design";
 import {
   checkDomainAvailability,
@@ -29,8 +30,6 @@ import {
 } from "../../utils/api";
 import AlternativeSuggestionsDisplay from "../AlternativeSuggestionsDisplay";
 import Section from "../Section";
-
-interface DomainAvailabilityProps {}
 
 const sanitizeDomainInput = (input: string): string => {
   if (typeof input !== "string") return "";
@@ -56,14 +55,14 @@ interface SuggestionsState {
   currentDomain: string | null;
 }
 
-export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
+export const DomainAvailability: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>("");
   const [domainSearchState, setDomainSearchState] = useState<DomainSearchState>(
     {
       result: null,
       loading: false,
       error: null,
-    }
+    },
   );
   const [suggestionsState, setSuggestionsState] = useState<SuggestionsState>({
     suggestions: null,
@@ -79,13 +78,13 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
   const performDomainCheckAndSuggest = async (domainToCheck: string) => {
     if (isPerformingCheck.current) {
       console.warn(
-        "[API_CALL_GUARD] performDomainCheckAndSuggest called while already in progress. Skipping."
+        "[API_CALL_GUARD] performDomainCheckAndSuggest called while already in progress. Skipping.",
       );
       return;
     }
     isPerformingCheck.current = true;
     setDomainSearchState({ result: null, loading: true, error: null });
-    setSuggestionsState((prev) => ({
+    setSuggestionsState(prev => ({
       ...prev,
       suggestions: null,
       loading: true,
@@ -97,47 +96,50 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
 
     try {
       const mainCheckResult = await checkDomainAvailability(domainToCheck);
-      setDomainSearchState((prev) => ({
+      setDomainSearchState(prev => ({
         ...prev,
         result: mainCheckResult,
         loading: false,
       }));
 
       if (mainCheckResult && mainCheckResult.result.domain) {
-        setSuggestionsState((prev) => ({
+        setSuggestionsState(prev => ({
           ...prev,
           currentDomain: mainCheckResult.result.domain,
         }));
         const suggestionsResult = await getDomainSuggestions(
           mainCheckResult.result.domain,
           false,
-          30
+          30,
         );
-        setSuggestionsState((prev) => ({
+        setSuggestionsState(prev => ({
           ...prev,
           suggestions: suggestionsResult,
           loading: false,
         }));
         isInitialSuggestionsFetchDone.current = true;
       } else {
-        setSuggestionsState((prev) => ({
+        setSuggestionsState(prev => ({
           ...prev,
           error: "Could not determine domain to fetch suggestions for.",
           loading: false,
         }));
         isInitialSuggestionsFetchDone.current = false;
       }
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "An unexpected error occurred.";
+    } catch (error: unknown) {
+      let errorMessage = "An unexpected error occurred.";
+      if (axios.isAxiosError(error)) {
+        errorMessage = error.response?.data?.message || error.message || "Failed to fetch data during domain check/suggestion.";
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      console.error("Error in performDomainCheckAndSuggest:", error);
       setDomainSearchState({
         result: null,
         loading: false,
         error: errorMessage,
       });
-      setSuggestionsState((prev) => ({
+      setSuggestionsState(prev => ({
         ...prev,
         error: "Could not load suggestions at this time.",
         loading: false,
@@ -163,7 +165,7 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
 
   const handleSubmit = async () => {
     if (!inputValue.trim()) {
-      setDomainSearchState((prev) => ({
+      setDomainSearchState(prev => ({
         ...prev,
         error: "Please enter a domain name.",
       }));
@@ -172,12 +174,12 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
     const currentSanitizedValue = inputValue.trim();
 
     if (!currentSanitizedValue) {
-      setDomainSearchState((prev) => ({
+      setDomainSearchState(prev => ({
         ...prev,
         error: "Please enter a domain name.",
         loading: false,
       }));
-      setSuggestionsState((prev) => ({ ...prev, loading: false }));
+      setSuggestionsState(prev => ({ ...prev, loading: false }));
       return;
     }
 
@@ -187,23 +189,23 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
     if (domainToSubmit.endsWith(".") && domainToSubmit.length > 1) {
       domainToSubmit = domainToSubmit.slice(0, -1);
     } else if (domainToSubmit === ".") {
-      setDomainSearchState((prev) => ({
+      setDomainSearchState(prev => ({
         ...prev,
         error: "Invalid domain name '.'. Please enter a valid domain name.",
         loading: false,
       }));
-      setSuggestionsState((prev) => ({ ...prev, loading: false }));
+      setSuggestionsState(prev => ({ ...prev, loading: false }));
       return;
     }
 
     // If domain became empty after stripping a trailing dot (e.g. input was " ." which became "." then empty)
     if (!domainToSubmit) {
-      setDomainSearchState((prev) => ({
+      setDomainSearchState(prev => ({
         ...prev,
         error: "Invalid domain name. Please enter a valid domain name.",
         loading: false,
       }));
-      setSuggestionsState((prev) => ({ ...prev, loading: false }));
+      setSuggestionsState(prev => ({ ...prev, loading: false }));
       return;
     }
 
@@ -236,9 +238,9 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
       if (!suggestionsState.currentDomain) {
         // Guard clause for null currentDomain
         console.error(
-          "Attempted to re-fetch suggestions without a current domain."
+          "Attempted to re-fetch suggestions without a current domain.",
         );
-        setSuggestionsState((prev) => ({
+        setSuggestionsState(prev => ({
           ...prev,
           error: "Cannot fetch suggestions: no domain specified.",
           loading: false,
@@ -246,9 +248,9 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
         return;
       }
       console.log(
-        `Re-fetching suggestions for ${suggestionsState.currentDomain} due to toggle. suggestOnlyAvailable: ${suggestionsState.onlyAvailable}`
+        `Re-fetching suggestions for ${suggestionsState.currentDomain} due to toggle. suggestOnlyAvailable: ${suggestionsState.onlyAvailable}`,
       );
-      setSuggestionsState((prev) => ({
+      setSuggestionsState(prev => ({
         ...prev,
         loading: true,
         suggestions: null,
@@ -257,17 +259,24 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
       try {
         const newSuggestions = await getDomainSuggestions(
           suggestionsState.currentDomain,
-          suggestionsState.onlyAvailable
+          suggestionsState.onlyAvailable,
         );
-        setSuggestionsState((prev) => ({
+        setSuggestionsState(prev => ({
           ...prev,
           suggestions: newSuggestions,
           loading: false,
         }));
-      } catch (err: any) {
-        setSuggestionsState((prev) => ({
+      } catch (error: unknown) {
+        let errorMessage = "Could not update suggestions based on filter.";
+        if (axios.isAxiosError(error)) {
+          errorMessage = error.response?.data?.message || error.message || "Failed to update suggestions.";
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        console.error("Error in reFetchSuggestionsOnToggle:", error);
+        setSuggestionsState(prev => ({
           ...prev,
-          error: "Could not update suggestions based on filter.",
+          error: errorMessage,
           loading: false,
         }));
       }
@@ -277,7 +286,7 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
   }, [suggestionsState.onlyAvailable, suggestionsState.currentDomain]);
 
   const borderColor = useColorModeValue(borderShade.light, borderShade.dark);
-  
+
   return (
     <Section title="I Want a Good Domain Name">
       <Stack spacing={4}>
@@ -285,8 +294,8 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
           <FormLabel srOnly>Domain Name</FormLabel>
           <HStack>
             <Input
-            borderColor={borderColor}
-              onKeyDown={(e) => {
+              borderColor={borderColor}
+              onKeyDown={e => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   // Check if domain is a valid FQDN and not already loading
@@ -379,8 +388,8 @@ export const DomainAvailability: React.FC<DomainAvailabilityProps> = () => {
                 <Switch
                   id="suggest-only-available"
                   isChecked={suggestionsState.onlyAvailable}
-                  onChange={(e) =>
-                    setSuggestionsState((prev) => ({
+                  onChange={e =>
+                    setSuggestionsState(prev => ({
                       ...prev,
                       onlyAvailable: e.target.checked,
                     }))

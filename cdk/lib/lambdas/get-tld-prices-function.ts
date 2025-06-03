@@ -1,13 +1,20 @@
 import { AWSDomainUtils } from "./utils/aws-domain-utils";
-import { CoreLambdaLogic, createApiHandler, HttpError } from "./utils/lambda-utils";
-import { GetTLDPricesRequest, GetTLDPricesResponse } from "../../../common/types";
+import {
+  CoreLambdaLogic,
+  createApiHandler,
+  HttpError,
+} from "./utils/lambda-utils";
+import {
+  GetTLDPricesRequest,
+  GetTLDPricesResponse,
+} from "../../../common/types";
 
 const awsDomainUtils = new AWSDomainUtils();
 
 const getTLDPricesLogic: CoreLambdaLogic<
   GetTLDPricesRequest,
   GetTLDPricesResponse
-> = async (payload) => {
+> = async payload => {
   const tld = payload.queryStringParameters?.tld;
 
   console.log(`Fetching TLD prices via GET. Filter TLD: ${tld || "all"}`);
@@ -18,16 +25,20 @@ const getTLDPricesLogic: CoreLambdaLogic<
     if (!prices) {
       throw new HttpError(
         "Failed to fetch TLD prices due to an internal error.",
-        500
+        500,
       );
     }
     return { prices };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error fetching TLD prices (TLD: ${tld || "all"}):`, error);
     if (error instanceof HttpError) {
       throw error;
     }
-    throw new HttpError(error.message || "Failed to fetch TLD prices.", 500);
+    let message = "Unknown error";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    throw new HttpError(message || "Failed to fetch TLD prices.", 500);
   }
 };
 

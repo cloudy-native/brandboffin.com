@@ -1,5 +1,5 @@
-exports.createPages = ({ graphql, actions, reporter }) => {};
+exports.createPages = ({ _graphql, _actions, _reporter }) => {};
 
-exports.onCreateNode = ({ node, actions, getNode }) => {};
+exports.onCreateNode = ({ _node, _actions, _getNode }) => {};
 
-exports.createSchemaCustomization = ({ actions }) => {};
+exports.createSchemaCustomization = ({ _actions }) => {};

@@ -11,7 +11,7 @@ export interface Shade {
 export function shadesFor(
   colorScheme: string,
   light: string,
-  dark: string
+  dark: string,
 ): Shade {
   return {
     light: `${colorScheme}.${light}`,
@@ -20,7 +20,11 @@ export function shadesFor(
 }
 
 export const backgroundShade: Shade = shadesFor(backgroundScheme, "100", "900");
-export const cardBackgroundShade: Shade = shadesFor(secondaryColorScheme, "50", "800");
+export const cardBackgroundShade: Shade = shadesFor(
+  secondaryColorScheme,
+  "50",
+  "800",
+);
 export const headingShade: Shade = shadesFor(primaryColorScheme, "900", "50");
 export const textShade: Shade = shadesFor(primaryColorScheme, "800", "100");
 export const borderShade: Shade = shadesFor(backgroundScheme, "300", "800");
@@ -29,19 +33,19 @@ export const accentShade: Shade = shadesFor(accentColorScheme, "500", "500");
 export const headerFooterBackgroundShade: Shade = shadesFor(
   backgroundScheme,
   "400",
-  "800"
+  "800",
 );
 
 export function getThemedColorLight(
   colorScheme: string,
-  shadeNumber: string
+  shadeNumber: string,
 ): string {
   return `${colorScheme}.${shadeNumber}`;
 }
 
 export function getThemedColorDark(
   colorScheme: string,
-  shadeNumber: string
+  shadeNumber: string,
 ): string {
   return `${colorScheme}.${shadeNumber}`;
 }

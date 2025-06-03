@@ -15,7 +15,7 @@ import BuyMeCoffeeButton from "./BuyMeCoffeeButton";
 const Footer = () => {
   const backgroundColor = useColorModeValue(
     headerFooterBackgroundShade.light,
-    headerFooterBackgroundShade.dark
+    headerFooterBackgroundShade.dark,
   );
 
   return (

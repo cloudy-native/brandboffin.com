@@ -35,17 +35,17 @@ class AWSDomainUtils {
         domain,
         available: response.Availability === "AVAILABLE",
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error checking domain ${domain}:`, error);
       // Check if it's an AWS SDK error and potentially extract more specific info
       // For example, the error might have a $metadata property or a name like 'InvalidInput'
       let errorMessage = "Failed to check domain availability.";
-      if (error.name === 'InvalidInput') {
+      if (typeof error === 'object' && error !== null && 'name' in error && error.name === "InvalidInput") {
         errorMessage = `Invalid domain name or TLD: ${domain}. Please ensure the format is correct and the TLD is valid.`;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      // Re-throw the error so it can be caught by the Lambda handler
+      // Rethrow as a structured error or return a specific error object
       throw new Error(errorMessage);
     }
   }
@@ -56,7 +56,7 @@ class AWSDomainUtils {
    */
   async checkDomains(
     domains: string[],
-    delayMs: number = 1000
+    delayMs: number = 1000,
   ): Promise<DomainCheckResult[]> {
     const results: DomainCheckResult[] = [];
 
@@ -77,7 +77,7 @@ class AWSDomainUtils {
    * Utility function to add delay between requests
    */
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -86,7 +86,7 @@ class AWSDomainUtils {
   async getDomainSuggestions(
     query: string,
     onlyAvailable: boolean = true,
-    suggestionCount: number = 10
+    suggestionCount: number = 10,
   ): Promise<DomainSuggestion[]> {
     try {
       const command = new GetDomainSuggestionsCommand({
@@ -98,9 +98,9 @@ class AWSDomainUtils {
       const response = await this.client.send(command);
 
       if (response.SuggestionsList) {
-        return response.SuggestionsList.map((suggestion) => ({
-            domainName: suggestion.DomainName || "",
-            available: suggestion.Availability === "AVAILABLE",
+        return response.SuggestionsList.map(suggestion => ({
+          domainName: suggestion.DomainName || "",
+          available: suggestion.Availability === "AVAILABLE",
         }));
       }
       return [];
@@ -126,7 +126,7 @@ class AWSDomainUtils {
       const response = await this.client.send(command);
 
       if (response.Prices) {
-        return response.Prices.map((priceInfo) => ({
+        return response.Prices.map(priceInfo => ({
           tld: priceInfo.Name || "",
           registrationPrice: priceInfo.RegistrationPrice?.Price,
           renewalPrice: priceInfo.RenewalPrice?.Price,

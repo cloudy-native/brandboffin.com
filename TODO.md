@@ -3,4 +3,3 @@
 - [ ] Move all AWS domain API code to aws-domains and use it in all Lambdas. See the domain suggestions Lambda, for example.
 - [ ] Suggester returns { brandname, domainName[], tagline }
 - [ ] Use the domain names in the response rather than making it up from the brand name suggestion
-
