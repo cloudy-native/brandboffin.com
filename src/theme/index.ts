@@ -363,16 +363,15 @@ const digitalClassroom: Colors = {
   },
 };
 
-// To stop Windsurf from removing these
-//
-export const colorSchemes = {
+// Brand theme configurations
+export const brandThemes = {
+  minimalist,
   artistStudio,
   clean,
-  digitalClassroom,
   dreamy,
   mindfulness,
-  minimalist,
   vitality,
+  digitalClassroom,
 };
 
 const theme = extendTheme({

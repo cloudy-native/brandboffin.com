@@ -71,7 +71,6 @@ const ColorSchemeDisplay: React.FC<ColorSchemeDisplayProps> = ({
 
 const AllColorSwatches: React.FC = () => {
   // Explicitly type 'colors' to ensure we know its structure.
-  // This assumes 'colors' has a structure like: { primary: { '50': '...', ... }, secondary: ..., etc. }
   const typedColors = colors as Record<string, Record<string, string>>;
 
   const schemesToDisplay: { [key: string]: Record<string, string> } = {
@@ -84,12 +83,12 @@ const AllColorSwatches: React.FC = () => {
   return (
     <Box p={6} borderWidth="1px" borderRadius="lg" m={4} boxShadow="lg">
       <Heading size="xl" mb={8} textAlign="center" color="primary.500">
-        Color Palette Swatches
+        Brand Theme Preview
       </Heading>
       {Object.entries(schemesToDisplay).map(([schemeName, shades]) => {
         if (!shades) {
           console.warn(
-            `Color scheme "${schemeName}" is undefined in the theme.`,
+            `Brand theme "${schemeName}" is undefined in the theme.`,
           );
           return null; // Skip rendering if a scheme is missing
         }

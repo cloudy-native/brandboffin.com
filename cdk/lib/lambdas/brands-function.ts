@@ -1,82 +1,30 @@
-import { Anthropic } from "@anthropic-ai/sdk";
-import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from "@aws-sdk/client-secrets-manager";
-import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+} from "@aws-sdk/client-bedrock-runtime";
+import type {
+  BrandNameSuggestion,
   BrandNameSuggestionRequest,
   BrandNameSuggestionResponse,
-  BrandNameSuggestion,
 } from "../../../common/types";
 import {
-  CoreLambdaLogic,
+  type CoreLambdaLogic,
   createApiHandler,
   HttpError,
 } from "./utils/lambda-utils";
 
-// Initialize clients outside the handler for potential reuse
-const secretsClient = new SecretsManagerClient({});
-let anthropic: Anthropic | undefined;
-
-async function getApiKey(secretName: string): Promise<string> {
-  console.log("Retrieving API key from Secrets Manager for secret", secretName);
-  try {
-    const command = new GetSecretValueCommand({ SecretId: secretName });
-    const data = await secretsClient.send(command);
-    if (data.SecretString) {
-      const secret = JSON.parse(data.SecretString);
-      if (secret.apiKey && typeof secret.apiKey === "string") {
-        return secret.apiKey;
-      }
-      throw new Error(
-        "'apiKey' field not found or not a string in secret JSON.",
-      );
-    }
-    throw new Error(
-      "API key not found in secret string (SecretString is empty).",
-    );
-  } catch (error: unknown) {
-    let detailMessage = "Unknown error during API key retrieval";
-    if (error instanceof Error) {
-      detailMessage = error.message;
-      console.error(
-        `Error retrieving API key '${secretName}':`,
-        error.message,
-        error,
-      );
-    } else {
-      console.error(
-        `Error retrieving API key '${secretName}':`,
-        error,
-      );
-    }
-    throw new HttpError(
-      `Could not retrieve API key from Secrets Manager for secret '${secretName}'.`,
-      500,
-      { detail: detailMessage },
-    );
+// Initialize Bedrock client outside the handler for reuse (uses Lambda IAM role)
+let bedrockClient: BedrockRuntimeClient | undefined;
+function getBedrockClient(): BedrockRuntimeClient {
+  if (!bedrockClient) {
+    const region =
+      process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
+    bedrockClient = new BedrockRuntimeClient({ region });
   }
+  return bedrockClient;
 }
 
-async function initializeAnthropicClient(): Promise<Anthropic> {
-  if (anthropic) {
-    return anthropic;
-  }
-  const claudeSecretName = process.env.CLAUDE_SECRET_NAME;
-  if (!claudeSecretName) {
-    console.error("CLAUDE_SECRET_NAME environment variable not set.");
-    throw new HttpError(
-      "Server configuration error: CLAUDE_SECRET_NAME not set.",
-      500,
-    );
-  }
-  const apiKey = await getApiKey(claudeSecretName);
-  anthropic = new Anthropic({ apiKey });
-  return anthropic;
-}
-
-function constructClaudePrompt(
+function constructBrandPrompt(
   request: BrandNameSuggestionRequest,
   defaultCount: number,
 ): string {
@@ -102,27 +50,12 @@ function constructClaudePrompt(
 
   fullPrompt += `
 For each of the ${count} suggestions, provide:
-1.  **Brand Name:** Memorable, distinct, easy to spell and pronounce, relevant to the core idea and style. Differentiated if an industry is provided.
-2.  **Tagline:** Concise (3-7 words), compelling, capturing the brand's essence, complementing the brand name.
-3.  **Suggested Domains:** An array of 3-5 relevant domain name suggestions (e.g., brandname.com, getbrandname.io, brandname.ai). Include a mix of common and creative TLDs. Only include TLDs that are relevant to the brand name. Only include TLDs that are valid.
+1.  Brand Name: Memorable, distinct, easy to spell and pronounce, relevant to the core idea and style. Differentiated if an industry is provided.
+2.  Tagline: Concise (3-7 words), compelling, capturing the brand's essence, complementing the brand name.
+3.  Suggested Domains: An array of 3-5 relevant domain name suggestions (e.g., brandname.com, getbrandname.io, brandname.ai). Include a mix of common and creative TLDs. Only include valid and relevant TLDs.
 
 Output Format:
-VERY IMPORTANT: Provide the entire response as a single, valid JSON array. Each element in the array should be an object with the following keys: "name" (string), "tagline" (string), and "suggestedDomains" (array of strings). Do not include any introductory/concluding text, explanations, or any other text outside of this JSON array.
-
-Example of the exact JSON output format required:
-[
-  {
-    "name": "Innovatech Solutions",
-    "tagline": "Engineering tomorrow's innovations, today.",
-    "suggestedDomains": ["innovatechsolutions.com", "innovatech.ai", "getinnovatech.io"]
-  },
-  {
-    "name": "EcoBloom Organics",
-    "tagline": "Naturally nurturing your well-being.",
-    "suggestedDomains": ["ecobloomorganics.com", "ecobloom.store", "bloomsustainably.com"]
-  }
-  // ... more suggestions if requested, up to ${count}
-]
+VERY IMPORTANT: Provide the entire response as a single, valid JSON array. Each element in the array should be an object with the following keys: "name" (string), "tagline" (string), and "suggestedDomains" (array of strings). Do not include any text outside of this JSON array.
 `;
   return fullPrompt;
 }
@@ -146,87 +79,91 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
   const requestBody = payload.body;
   const requestedCount = requestBody.count || 6; // Default to 5 suggestions
 
-  const client = await initializeAnthropicClient();
-  const systemPromptContent =
-    "You are 'BrandSpark', a world-class AI branding assistant. Your expertise lies in crafting unique brand names and impactful taglines. You are highly creative, pay close attention to user requirements, and strictly adhere to the requested output format.";
-  const userPromptContent = constructClaudePrompt(requestBody, requestedCount);
+  const client = getBedrockClient();
+  const modelId = process.env.MODEL_ID || "amazon.nova-premier-v1:0";
+  const temperature = parseFloat(process.env.MODEL_TEMPERATURE || "0.7");
+  const maxTokens = parseInt(process.env.MODEL_MAX_TOKENS || "2000", 10);
+  const userPromptContent = constructBrandPrompt(requestBody, requestedCount);
 
-  console.log("Constructed user prompt for Claude:", userPromptContent);
+  console.log("Constructed user prompt for model:", userPromptContent);
 
   try {
-    const claudeModel = process.env.CLAUDE_MODEL || "claude-3-opus-20240229";
-    const temperature = parseFloat(process.env.CLAUDE_TEMPERATURE || "0.7");
-    const maxTokens = parseInt(process.env.CLAUDE_MAX_TOKENS || "2000", 10); // Increased max tokens for JSON output
-
-    const messages: MessageParam[] = [
-      { role: "user", content: userPromptContent },
+    const messages = [
+      {
+        role: "user" as const,
+        content: [{ text: userPromptContent }],
+      },
     ];
 
-    const response = await client.messages.create({
-      model: claudeModel,
-      max_tokens: maxTokens,
-      temperature: temperature,
-      system: systemPromptContent, // Added system prompt
-      messages: messages,
-    });
+    const system = [
+      {
+        text: "You are 'BrandSpark', a world-class AI branding assistant. Be creative, precise, and output only a single valid JSON array as specified.",
+      },
+    ];
 
-    console.log("Claude API response received.", response);
+    const response = await client.send(
+      new ConverseCommand({
+        modelId,
+        messages,
+        system,
+        inferenceConfig: {
+          maxTokens,
+          temperature,
+          topP: 0.9,
+          stopSequences: [],
+        },
+        // performanceConfig and additionalModelRequestFields can be set via env if needed
+      }),
+    );
+
+    console.log("Bedrock Converse response received.");
 
     let suggestions: BrandNameSuggestion[] = [];
-    if (
-      response.content &&
-      response.content.length > 0 &&
-      response.content[0].type === "text"
-    ) {
-      const modelOutputText = response.content[0].text.trim();
-      interface PotentialSuggestion {
-        name?: unknown;
-        tagline?: unknown;
-        suggestedDomains?: unknown;
-        [key: string]: unknown;
-      }
-      try {
-        const parsedOutput = JSON.parse(modelOutputText) as unknown;
-
-        if (Array.isArray(parsedOutput)) {
-          suggestions = parsedOutput.filter(
-            (item: unknown): item is BrandNameSuggestion => {
-              const potentialItem = item as PotentialSuggestion;
-              return (
-                potentialItem != null &&
-                typeof potentialItem.name === "string" &&
-                typeof potentialItem.tagline === "string" &&
-                Array.isArray(potentialItem.suggestedDomains) &&
-                potentialItem.suggestedDomains.every((d: unknown) => typeof d === "string")
-              );
-            }
-          );
-        } else {
-          console.error(
-            "Model output was not a JSON array as expected. Output:",
-            modelOutputText,
-          );
-        }
-      } catch (jsonParseError: unknown) {
-        let errorMsg = "Unknown JSON parsing error";
-        if (jsonParseError instanceof Error) {
-            errorMsg = jsonParseError.message;
-        }
-        console.error(
-          "Failed to parse model output as JSON:",
-          errorMsg,
-        );
-        console.error("Model output that failed to parse:", modelOutputText);
-        // Optionally, throw an HttpError to inform the client
-        // throw new HttpError("Failed to parse brand suggestions from model output. Please try again.", 500);
-      }
+    const modelOutputText = (
+      response?.output?.message?.content?.find(
+        (c: any) => typeof c?.text === "string",
+      )?.text || ""
+    ).trim();
+    interface PotentialSuggestion {
+      name?: unknown;
+      tagline?: unknown;
+      suggestedDomains?: unknown;
+      [key: string]: unknown;
     }
+    try {
+      const parsedOutput = JSON.parse(modelOutputText) as unknown;
 
-    // Ensure we don't return more than requested, even if Claude provides more formatted pairs
-    suggestions = suggestions.slice(0, requestedCount);
-
-    console.log("Returning suggestions:", suggestions);
-
+      if (Array.isArray(parsedOutput)) {
+        suggestions = parsedOutput.filter(
+          (item: unknown): item is BrandNameSuggestion => {
+            const potentialItem = item as PotentialSuggestion;
+            return (
+              potentialItem != null &&
+              typeof potentialItem.name === "string" &&
+              typeof potentialItem.tagline === "string" &&
+              Array.isArray(potentialItem.suggestedDomains) &&
+              potentialItem.suggestedDomains.every(
+                (d: unknown) => typeof d === "string",
+              )
+            );
+          },
+        );
+      } else {
+        console.error(
+          "Model output was not a JSON array as expected. Output:",
+          modelOutputText,
+        );
+      }
+    } catch (jsonParseError: unknown) {
+      let errorMsg = "Unknown JSON parsing error";
+      if (jsonParseError instanceof Error) {
+        errorMsg = jsonParseError.message;
+      }
+      console.error("Failed to parse model output as JSON:", errorMsg);
+      console.error("Model output that failed to parse:", modelOutputText);
+      // Optionally, throw an HttpError to inform the client
+      // throw new HttpError("Failed to parse brand suggestions from model output. Please try again.", 500);
+    }
     return { suggestions };
   } catch (error: unknown) {
     let errorMessage = "An unknown error occurred";
@@ -236,11 +173,16 @@ const brandNameSuggesterLogic: CoreLambdaLogic<
       errorMessage = error.message;
     }
     // Attempt to get status if it exists, common in HTTP related errors
-    if (typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number') {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number"
+    ) {
       errorStatus = error.status;
     }
 
-    console.error("Error calling Claude API:", errorMessage, error);
+    console.error("Error calling Bedrock model:", errorMessage, error);
     // Check for specific Anthropic error types if available/needed
     // e.g., if (error instanceof Anthropic.APIError) { ... }
     // If error is already an HttpError, it might be better to rethrow it or handle its properties directly.

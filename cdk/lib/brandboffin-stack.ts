@@ -7,6 +7,7 @@ import {
   LambdaIntegration,
   LambdaRestApi,
 } from 'aws-cdk-lib/aws-apigateway';
+import { CfnApplicationInferenceProfile } from 'aws-cdk-lib/aws-bedrock';
 import {
   Certificate,
   CertificateValidation,
@@ -18,6 +19,7 @@ import {
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import {
   ApiGatewayDomain,
@@ -25,13 +27,14 @@ import {
 } from 'aws-cdk-lib/aws-route53-targets';
 import { BlockPublicAccess, Bucket } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
-import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Statement } from 'cdk-iam-floyd';
 import { Construct } from 'constructs';
 import { createLambdaFunction } from './lambdas/utils/lambda-utils';
 
-const CLAUDE_SECRET_NAME = process.env.CLAUDE_SECRET_NAME || 'claude-api';
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620';
+// Optional: model configuration via environment during synth/deploy (vendor-agnostic)
+const MODEL_ID = process.env.MODEL_ID || 'amazon.nova-micro-v1:0';
+const MODEL_TEMPERATURE = process.env.MODEL_TEMPERATURE || '0.7';
+const MODEL_MAX_TOKENS = process.env.MODEL_MAX_TOKENS || '2000';
 
 export interface BrandBoffinStackProps extends StackProps {
   domainName: string;
@@ -43,10 +46,20 @@ export class BrandBoffinStack extends Stack {
     super(scope, id, props);
 
     const { domainName, apiDomainName } = props;
-    const claudeSecret = Secret.fromSecretNameV2(
+
+    // Create a Bedrock Application Inference Profile for the selected model
+    const region = Stack.of(this).region;
+    const foundationModelArn = `arn:aws:bedrock:${region}::foundation-model/${MODEL_ID}`;
+    const inferenceProfile = new CfnApplicationInferenceProfile(
       this,
-      'ClaudeSecret',
-      CLAUDE_SECRET_NAME,
+      'BrandBoffinInferenceProfile',
+      {
+        inferenceProfileName: `brandboffin-${region}-inference-profile`,
+        modelSource: {
+          copyFrom: foundationModelArn,
+        },
+        // Optionally: name, description, tags
+      },
     );
 
     const brandNameSuggesterFunction = createLambdaFunction(
@@ -55,15 +68,28 @@ export class BrandBoffinStack extends Stack {
       {
         entry: 'lib/lambdas/brands-function.ts',
         memorySize: 1024, // Increased memory
-        nodeModules: ['@aws-sdk/client-secrets-manager'],
+        nodeModules: ['@aws-sdk/client-bedrock-runtime'],
         environment: {
-          CLAUDE_MODEL,
-          CLAUDE_SECRET_NAME,
+          // Pass the inference profile ARN to the Lambda
+          MODEL_ID: inferenceProfile.attrInferenceProfileArn,
+          MODEL_TEMPERATURE,
+          MODEL_MAX_TOKENS,
         },
       },
     );
 
-    claudeSecret.grantRead(brandNameSuggesterFunction);
+    // Grant permission to invoke Bedrock via the inference profile and base model
+    brandNameSuggesterFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          // Inference profile ARN
+          inferenceProfile.attrInferenceProfileArn,
+          // Base foundation model ARN (optional, but can help if Bedrock evaluates against model resource)
+          foundationModelArn,
+        ],
+      }),
+    );
 
     const checkOneDomainFunction = createLambdaFunction(
       this,
